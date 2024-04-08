@@ -9,10 +9,17 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "vue": "^3.4.21"
+    "@ffmpeg/core": "^0.12.6",
+    "@ffmpeg/core-mt": "^0.12.6",
+    "@ffmpeg/ffmpeg": "^0.12.10",
+    "@ffmpeg/util": "^0.12.1",
+    "hls.js": "^1.5.7",
+    "vue": "^3.4.21",
+    "vue3-toastify": "^0.2.1",
+    "vuetify": "^3.5.14"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^5.0.4",
-    "vite": "^5.2.0"
+    "@vitejs/plugin-vue": "4.0.0",
+    "vite": "4.5.2"
   }
 }
