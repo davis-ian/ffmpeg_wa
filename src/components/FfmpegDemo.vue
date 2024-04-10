@@ -1,62 +1,81 @@
 <template>
   <div>
-    <div class="mb-4">ffmpeg demo</div>
+    <h1 class="pa-6">Thumbnail Clipper</h1>
 
     <div class="ma-8">
       <input style="border: 2px solid" type="file" @change="handleFileChange" />
     </div>
 
-    <v-btn
-      class="my-4"
-      v-if="!showProgress"
-      :loading="!loaded"
-      :disabled="!loaded || !selectedFile"
-      color="primary"
-      @click="generateThumbnail"
-      >Transcode</v-btn
-    >
-
-    <v-btn class="my-4" v-if="showProgress" color="error" @click="terminate"
-      >Cancel</v-btn
-    >
-
     <div>
-      <v-progress-linear
-        class="ma-3"
-        color="primary"
-        v-if="showProgress"
-        height="20"
-        rounded
-        indeterminate
-      >
-        <!-- v-model="progress" -->
-        <!-- <span>{{ progress }}%</span> -->
-      </v-progress-linear>
-      <video
-        @timeupdate="handleTimeUpdate"
-        style="max-width: 600px"
-        id="video"
-        :src="fileBlobUrl"
-        v-if="fileBlobUrl"
-        controls
-      ></video>
+      <div class="d-flex flex-column align-center">
+        <div v-show="fileBlobUrl && !thumbnailSrc">
+          <div style="position: relative">
+            <video
+              style="max-width: 100%"
+              @timeupdate="handleTimeUpdate"
+              id="video"
+              :src="fileBlobUrl"
+              controls
+            ></video>
 
-      <div class="ma-4">
-        <v-img
-          v-if="thumbnailSrc"
-          :src="thumbnailSrc"
-          :lazy-src="thumbnailSrc"
-        ></v-img>
+            <v-overlay
+              contained
+              v-model="showProgress"
+              class="justify-center align-center"
+            >
+              <v-progress-circular
+                color="secondary"
+                class="ma-3"
+                v-if="showProgress"
+                rounded
+                indeterminate
+                size="70"
+              >
+              </v-progress-circular>
+            </v-overlay>
+          </div>
 
-        <v-btn
-          color="success"
-          v-if="thumbnailSrc"
-          class="ma-4"
-          @click="downloadThumbnail(thumbnailSrc, 'thumbnail.jpg')"
-          >Download</v-btn
-        >
+          <div v-show="fileBlobUrl">
+            <p>Select thumbail timestamp</p>
+            <v-btn
+              class="my-4"
+              v-if="!showProgress"
+              :loading="!loaded"
+              :disabled="!loaded || !selectedFile"
+              color="primary"
+              @click="generateThumbnail"
+              >Generate Thumbnail</v-btn
+            >
+          </div>
+          <v-btn
+            class="my-4"
+            v-if="showProgress"
+            color="error"
+            @click="terminate"
+            >Cancel</v-btn
+          >
+        </div>
       </div>
 
+      <div v-if="thumbnailSrc">
+        <div class="text-left">
+          <v-btn class="my-4" color="black" @click="thumbnailSrc = null">
+            <v-icon class="mr-2">mdi-arrow-left</v-icon>
+            <span>Back</span>
+          </v-btn>
+        </div>
+
+        <div>
+          <v-img :src="thumbnailSrc" :lazy-src="thumbnailSrc"></v-img>
+
+          <v-btn
+            class="my-4"
+            color="success"
+            @click="downloadThumbnail(thumbnailSrc, 'thumbnail.jpg')"
+            >Download</v-btn
+          >
+        </div>
+      </div>
       <div>
         <!-- <v-btn color="primary" @click="playHls(hlsSample)">play Sample</v-btn> -->
       </div>
@@ -81,6 +100,7 @@ export default {
       outputFile: null,
       fileBlobUrl: "",
       thumbnailTime: 0,
+      thumbnailSrc: "",
       hlsSample:
         "https://live-par-2-cdn-alt.livepush.io/live/bigbuckbunnyclip/index.m3u8",
     };
@@ -270,6 +290,7 @@ export default {
       }
     },
     handleFileChange(event) {
+      this.thumbnailSrc = null;
       const files = event.target.files;
 
       if (files.length > 0) {

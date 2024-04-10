@@ -2,70 +2,49 @@
   <div>
     <v-row>
       <v-col cols="12">
-        <v-text-field v-model="inputPath" label="Input Path"></v-text-field>
+        <v-textarea
+          variant="outlined"
+          v-model="command"
+          label="Command Editor"
+        ></v-textarea>
       </v-col>
-      <!-- <v-col>
-        <v-switch
-          color="primary"
-          label="Output Same Folder"
-          v-model="outputSameDirectory"
-        ></v-switch>
-      </v-col> -->
       <v-col>
-        <v-select
-          v-model="selectedEncoder"
-          :items="encoders"
-          item-title="title"
-          label="Encoder"
-          persistent-hint
-          return-object
-          single-line
-        ></v-select>
-      </v-col>
-      <v-col cols="12">
         <v-row>
           <v-col>
-            <v-text-field
-              :disabled="outputSameDirectory"
-              v-model="outputDir"
-              label="Output Folder"
-            ></v-text-field>
+            <v-text-field v-model="inputPath" label="Input Path"></v-text-field>
           </v-col>
           <v-col>
             <v-text-field
-              v-model="outputFileName"
-              label="Output File Name"
+              v-model="outputPath"
+              label="Output Path"
             ></v-text-field>
-          </v-col>
-
-          <v-col>
-            <v-select
-              v-model="selectedOutputType"
-              :items="outputTypes"
-              item-title="title"
-              label="Encoder"
-              persistent-hint
-              return-object
-              single-line
-            ></v-select>
           </v-col>
         </v-row>
       </v-col>
+
+      <!-- <v-col>
+        <v-btn color="primary" @click="addArg">Add Argument</v-btn>
+      </v-col> -->
     </v-row>
 
-    <v-btn @click="generateCommand" color="primary">Generate Command</v-btn>
-    <div class="ma-8" style="border: 2px solid red">
-      {{ command }}
-    </div>
+    <!-- <v-btn @click="generateCommand" color="primary">Generate Command</v-btn> -->
 
     <v-btn v-if="command" @click="copyToClipboard(command)" color="success"
       >Copy</v-btn
     >
-    <v-btn @click="test"> test </v-btn>
+    <div class="mt-8 d-flex flex-column align-center">
+      <h2>Quick Commands</h2>
 
-    <!-- <div class="ma-8" style="border: 2px solid blue">
-      <v-textarea label="Command Editor"></v-textarea>
-    </div> -->
+      <div class="d-flex">
+        <v-btn
+          class="ma-2"
+          color="secondary"
+          @click="cmd.callback"
+          v-for="cmd in quickCommands"
+          >{{ cmd.label }}</v-btn
+        >
+      </div>
+    </div>
   </div>
 </template>
 <script>
@@ -75,9 +54,8 @@ export default {
   data() {
     return {
       command: null,
-      inputPath: "",
-      outputDir: "",
-      outputFileName: "",
+      inputPath: "input.mp4",
+      outputPath: "output.mp4",
       filters: [{ title: "scale", value: "" }],
       selectedFilters: [],
       selectedEncoder: { title: "libx264" },
@@ -92,22 +70,60 @@ export default {
         { title: "h264_amf", value: 1 },
         { title: "libx265", value: 2 },
       ],
+      commandArgs: [],
+      quickCommands: [
+        { label: "Hls Convert", callback: this.hlsQuickCommand },
+        { label: "Trim", callback: this.hlsQuickCommand },
+        { label: "Compress", callback: this.hlsQuickCommand },
+        { label: "Grayscale", callback: this.hlsQuickCommand },
+      ],
     };
   },
   watch: {
-    outputSameDirectory() {
-      this.generateOutputDir();
-    },
-    inputPath(newVal) {
-      var valid = this.hasValidFileExtension(newVal);
-
-      console.log(valid, "is valid");
-      if (valid) {
-        this.outputDir = "test";
-      }
-    },
+    // commandArgs: {
+    //   handler(newVal) {
+    //     this.updateCommand();
+    //   },
+    //   deep: true,
+    // },
   },
+
   methods: {
+    updateCommand() {
+      const argString = this.commandArgs
+        .map((arg) => `${arg.key} ${arg.value}`)
+        .join(" ");
+      console.log(argString, "argstring");
+
+      this.command = `ffmpeg  ${argString}`;
+    },
+    addArg() {
+      this.commandArgs.push({ key: "", value: "" });
+    },
+    hlsQuickCommand() {
+      const input = this.inputPath ?? "input.mp4";
+      const output = this.outputPath ?? "output.mp4";
+
+      this.commandArgs = [
+        { key: "-i", value: input, type: "input" },
+        { key: "-c:v", value: "libx264", type: "arg" },
+        { key: "-start_number", value: 0, type: "arg" },
+        { key: "-hls_time", value: 10, type: "arg" },
+        { key: "-hls_list_size", value: 0, type: "arg" },
+        { key: "-f", value: "hls", type: "arg" },
+        { key: "", value: output, type: "output" },
+      ];
+
+      this.updateCommand();
+    },
+    grayscaleQuickCommand() {
+      this.commandArgs = [
+        { key: "-i", value: input, type: "input" },
+        { key: "-c:v", value: "libx264", type: "arg" },
+        { key: "-f", value: "hls", type: "arg" },
+        { key: "", value: output, type: "output" },
+      ];
+    },
     hasValidFileExtension(path) {
       // Define a list of valid file extensions
       const validExtensions = [".jpg", ".jpeg", ".png", ".gif", ".mp4"];
@@ -135,37 +151,30 @@ export default {
 
       this.command = command;
     },
-    generateOutputDir() {
-      if (this.inputPath) {
-        this.outputDir = this.inputPath.substring(
-          0,
-          this.inputPath.lastIndexOf("\\") + 1
-        );
 
-        this.outputPath = this.outputDir + this.outputFileName;
-      }
-    },
     generateCommand() {
       if (!this.inputPath) {
         this.$toast("Input path required", { type: "error" });
         return;
       }
 
-      const encoder = this.selectedEncoder.title ?? "libx264";
+      // const encoder = this.selectedEncoder.title ?? "libx264";
 
-      const outputType = this.selectedOutputType.title;
+      // const outputType = this.selectedOutputType.title;
 
-      if (outputType == "HLS") {
-        const output = fcommand.convertToHlsPath(this.inputPath);
-        console.log(output, "output");
-        this.outputPath = output.path;
+      // if (outputType == "HLS") {
+      //   const output = fcommand.convertToHlsPath(this.inputPath);
+      //   console.log(output, "output");
+      //   this.outputPath = output.path;
 
-        this.command = fcommand.generateHlsConvertCommand(
-          this.inputPath,
-          encoder,
-          output
-        );
-      }
+      //   this.command = fcommand.generateHlsConvertCommand(
+      //     this.inputPath,
+      //     encoder,
+      //     output
+      //   );
+      // }
+
+      this.hlsQuickCOmmand();
     },
     copyToClipboard(val) {
       navigator.clipboard.writeText(val);
