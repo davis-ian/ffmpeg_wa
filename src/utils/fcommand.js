@@ -1,3 +1,5 @@
+import path from "path";
+
 export const fcommand = {
   //Commands
 
@@ -78,6 +80,20 @@ export const fcommand = {
 
     const newPath = `${directory}${newFileName}`;
     return `"${newPath}"`;
+  },
+
+  /**
+   * Returns current directory from file path
+   * @param {string} filePath
+   * @return {string}  - file directory
+   */
+  generateOutputDir(filePath) {
+    if (filePath) {
+      // Use path.sep to get the platform-specific path separator
+      const separatorIndex = filePath.lastIndexOf("/") + 1;
+
+      return filePath.substring(0, separatorIndex);
+    }
   },
 };
 
