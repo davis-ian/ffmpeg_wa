@@ -1,0 +1,64 @@
+/* Global Font Import - Inter from Google Fonts (COEP-friendly) */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+/* MonkeyType-inspired Dark Theme Variables */
+:root {
+  /* Font Family */
+  --font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  
+  /* Background Colors */
+  --bg-primary: #0c0c0c;
+  --bg-secondary: #121212;
+  --bg-surface: #1a1a1a;
+  --bg-surface-hover: #2a2a2a;
+  --bg-surface-active: #333333;
+  
+  /* Accent Colors */
+  --accent: #ff9900;
+  --accent-hover: #ffb84d;
+  --accent-muted: #cc7a00;
+  
+  /* Text Colors */
+  --text-primary: #e6e6e6;
+  --text-secondary: #b3b3b3;
+  --text-muted: #666666;
+  --text-disabled: #404040;
+  --text-pop: #ffffff;
+  
+  /* Status Colors */
+  --success: #4caf50;
+  --error: #f44336;
+  --warning: #ff9800;
+  --info: #2196f3;
+  
+  /* Border Colors */
+  --border: #2a2a2a;
+  --border-hover: #404040;
+  
+  /* Sidebar */
+  --sidebar-bg: #0c0c0c;
+  --sidebar-width: 60px;
+  --sidebar-expanded: 220px;
+  
+  /* Spacing - Compact Industrial */
+  --space-xs: 2px;
+  --space-sm: 6px;
+  --space-md: 12px;
+  --space-lg: 20px;
+  --space-xl: 28px;
+  
+  /* Border Radius - Sharp */
+  --radius-sm: 0px;
+  --radius-md: 2px;
+  --radius-lg: 4px;
+  
+  /* Grid Lines */
+  --grid-line: #333333;
+  
+  /* Transitions */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.3s ease;
+  
+  /* Shadows - Flat Industrial Design */
+  --shadow-none: none;
+}

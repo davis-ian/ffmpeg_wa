@@ -1,11 +1,10 @@
 <template>
-  <div>
-    <h1 class="pa-6">Thumbnail Clipper</h1>
+  <div class="thumbnail-clipper">
+    <h1>Thumbnail Clipper</h1>
 
-    <div class="ma-8">
+    <div class="file-input-wrapper">
       <input
         v-show="!fileBlobUrl"
-        style="border: 2px solid"
         type="file"
         @change="handleFileChange"
         ref="fileInput"
@@ -13,289 +12,147 @@
       />
     </div>
 
-    <v-progress-linear
-      class="ma-3"
-      color="primary"
-      v-if="showProgress"
-      height="20"
-      rounded
-      indeterminate
-    >
-    </v-progress-linear>
-    <video
-      @timeupdate="handleTimeUpdate"
-      style="max-width: 600px"
-      id="video"
-      :src="fileBlobUrl"
-      v-if="fileBlobUrl"
-      v-show="!thumbnailSrc"
-      controls
-    ></video>
-
-    <v-img
-      v-if="thumbnailSrc"
-      style="width: 100%"
-      :src="thumbnailSrc"
-      :lazy-src="thumbnailSrc"
-    ></v-img>
-
-    <div v-if="thumbnailSrc" class="ma-4">
-      <v-btn color="black" class="ma-4" @click="thumbnailSrc = null"
-        >Back</v-btn
+    <div class="progress-container" v-if="showProgress">
+      <v-progress-linear
+        color="primary"
+        height="20"
+        rounded
+        indeterminate
       >
-      <v-btn
-        color="success"
-        class="ma-4"
-        @click="downloadThumbnail(thumbnailSrc, 'thumbnail.jpg')"
-        >Download</v-btn
-      >
+      </v-progress-linear>
+      <p class="loading-text">Processing video...</p>
     </div>
 
-    <div v-if="!thumbnailSrc" class="d-flex justify-center">
-      <v-btn
-        class="ma-4"
+    <div class="video-container" v-if="fileBlobUrl && !thumbnailSrc">
+      <video
+        @timeupdate="handleTimeUpdate"
+        id="video"
+        :src="fileBlobUrl"
+        controls
+      ></video>
+    </div>
+
+    <div class="thumbnail-container" v-if="thumbnailSrc">
+      <img
+        :src="thumbnailSrc"
+        alt="Generated thumbnail"
+      />
+    </div>
+
+    <div class="button-container" v-if="thumbnailSrc">
+      <button 
+        class="btn btn-secondary" 
+        @click="thumbnailSrc = null"
+      >
+        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+        Back
+      </button>
+      <button 
+        class="btn btn-primary" 
+        @click="downloadThumbnail(thumbnailSrc, 'thumbnail.jpg')"
+      >
+        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+        </svg>
+        Download
+      </button>
+    </div>
+
+    <div class="button-container" v-if="!thumbnailSrc">
+      <button
+        class="btn btn-secondary"
         v-if="fileBlobUrl && !showProgress"
-        :loading="!loaded"
         :disabled="!loaded"
-        color="black"
         @click="clearSelectedFile"
-        >Select New File</v-btn
       >
+        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M23 4v6h-6M1 20v-6h6M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
+        </svg>
+        Select New File
+      </button>
 
-      <v-btn
-        class="ma-4"
+      <button
+        class="btn btn-primary"
         v-if="!showProgress && fileBlobUrl"
-        :loading="!loaded"
         :disabled="!loaded || !selectedFile"
-        color="primary"
         @click="generateThumbnail"
-        >Generate Thumbnail</v-btn
       >
+        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+          <circle cx="12" cy="13" r="4"/>
+        </svg>
+        Generate Thumbnail
+      </button>
 
-      <v-btn class="ma-4" v-if="showProgress" color="error" @click="terminate"
-        >Cancel</v-btn
+      <button 
+        class="btn btn-danger" 
+        v-if="showProgress" 
+        @click="terminate"
       >
+        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+        Cancel
+      </button>
     </div>
   </div>
 </template>
 <script>
-import { FFmpeg } from '@ffmpeg/ffmpeg';
-import { fetchFile, toBlobURL } from '@ffmpeg/util';
-import Hls from 'hls.js';
+import { ffmpegService } from '../services/ffmpegService.js';
 
 export default {
+  name: 'FfmpegDemo',
   data() {
     return {
-      ffmpeg: null,
-      show: true,
-      message: 'hi',
       loaded: false,
-      src: '',
-      progress: 0,
       showProgress: false,
       selectedFile: null,
-      outputFile: null,
       fileBlobUrl: '',
       thumbnailTime: 0,
       thumbnailSrc: null,
-      hlsSample:
-        'https://live-par-2-cdn-alt.livepush.io/live/bigbuckbunnyclip/index.m3u8',
     };
   },
   methods: {
-    toggleShow() {
-      this.show = !this.show;
-    },
     clearSelectedFile() {
-      var fi = this.$refs.fileInput;
-      if (fi) {
-        console.log(fi, 'input');
-        fi.value = '';
+      if (this.$refs.fileInput) {
+        this.$refs.fileInput.value = '';
       }
-
       this.selectedFile = null;
       this.fileBlobUrl = null;
-    },
-    async loadFfmpeg() {
-      this.showProgress = false;
-      this.progress = 0;
-      this.loaded = false;
-
-      const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
-      const ffmpeg = new FFmpeg();
-
-      ffmpeg.on('log', ({ type, message }) => {
-        console.log(`FFmpeg: ${type}: ${message}`);
-      });
-
-      ffmpeg.on('progress', ({ progress, time }) => {
-        console.log(`progress ${progress}: ${time}`);
-        this.progress = Math.ceil(progress * 100);
-      });
-
-      await ffmpeg.load({
-        coreURL: await toBlobURL(
-          `${baseURL}/ffmpeg-core.js`,
-          'text/javascript'
-        ),
-        wasmURL: await toBlobURL(
-          `${baseURL}/ffmpeg-core.wasm`,
-          'application/wasm'
-        ),
-        // workerURL: await toBlobURL(
-        //   `${baseURL}/ffmpeg-core.worker.js`,
-        //   "text/javascript"
-        // ),
-      });
-
-      this.loaded = true;
-      console.log(ffmpeg, 'ffmpeg after load');
-
-      this.ffmpeg = ffmpeg;
-    },
-    async transcode() {
-      this.src = null;
-      this.showProgress = true;
-      console.log(this.ffmpeg, 'ffmpeg transcode');
-      await this.ffmpeg.writeFile(
-        'input.mp4',
-        await fetchFile(this.selectedFile)
-      );
-
-      await this.ffmpeg.exec([
-        '-i',
-        'input.mp4',
-        '-s',
-        '-c:v',
-        'libx264',
-        '-preset',
-        'ultrafast',
-        '-vf',
-        'format=gray',
-        '-c:a',
-        'copy',
-        'output.mp4',
-      ]);
-
-      const data = await this.ffmpeg.readFile('output.mp4');
-
-      this.outputFile = data;
-
-      this.src = URL.createObjectURL(
-        new Blob([data.buffer], { type: 'video/mp4' })
-      );
-
-      this.showProgress = false;
-    },
-    async transcodeToHLS() {
-      this.showProgress = true;
-
-      // Write the selected file to FFmpeg's virtual file system.
-      await this.ffmpeg.writeFile(
-        'input.mp4',
-        await fetchFile(this.selectedFile)
-      );
-
-      // Execute FFmpeg command to transcode to HLS format.
-      await this.ffmpeg.exec([
-        '-i',
-        'input.mp4',
-        '-profile:v',
-        'baseline', // For maximum compatibility
-        '-level',
-        '3.0',
-        '-s',
-        '640x360', // Example resolution, adjust as needed
-        '-start_number',
-        '0',
-        '-hls_time',
-        '10', // Segment length
-        '-hls_list_size',
-        '0', // Include all segments in playlist
-        '-f',
-        'hls',
-        'output.m3u8',
-      ]);
-
-      this.showProgress = false;
-
-      const playlistData = await this.ffmpeg.readFile('output.m3u8');
-      const playlistBlob = new Blob([playlistData.buffer], {
-        type: 'application/vnd.apple.mpegurl',
-      });
-      const playlistUrl = URL.createObjectURL(playlistBlob);
-
-      this.playHls(playlistUrl);
-    },
-    formatTimeForFFmpeg(time) {
-      // Ensure currentTime is a number and handle fractional seconds by rounding down
-      const totalSeconds = Math.floor(Number(time));
-
-      console.log(totalSeconds, 'total seconds');
-
-      const hours = Math.floor(totalSeconds / 3600);
-      const minutes = Math.floor((totalSeconds % 3600) / 60);
-      const seconds = totalSeconds % 60;
-
-      // Format the components to "HH:MM:SS" format
-      const formattedTime = [hours, minutes, seconds]
-        .map((val) => (val < 10 ? `0${val}` : val)) // Pad with leading zeros if necessary
-        .join(':');
-
-      return formattedTime;
+      this.thumbnailSrc = null;
     },
     async generateThumbnail() {
-      this.showProgress = true;
-      this.progress = 0;
+      if (!this.selectedFile) return;
 
-      const offset = 2;
-      const roughTime = this.thumbnailTime - offset;
+      this.showProgress = true;
 
       try {
-        // Write the selected file to FFmpeg's virtual file system.
-        await this.ffmpeg.writeFile(
-          'input.mp4',
-          await fetchFile(this.selectedFile)
+        // Use centralized service for thumbnail generation
+        const thumbnailData = await ffmpegService.generateThumbnail(
+          this.selectedFile,
+          this.thumbnailTime,
+          { offsetSeconds: 2, quality: 2 }
         );
 
-        // Execute FFmpeg command to generate a thumbnail.
-        // This example takes a frame at the 1-second mark of the video.
-        await this.ffmpeg.exec([
-          '-ss',
-          `${roughTime}`,
-          '-i',
-          'input.mp4',
-          '-ss',
-          `${offset}`,
-          '-frames:v',
-          '1', // Extract 1 video frame.
-          '-f',
-          'image2', // Output format for images.
-          'thumbnail.jpg', // Output file name.
-        ]);
-
-        // Read the generated thumbnail file.
-        const data = await this.ffmpeg.readFile('thumbnail.jpg');
-
-        // Create a URL for the thumbnail for display or download.
+        // Create URL for display
         this.thumbnailSrc = URL.createObjectURL(
-          new Blob([data.buffer], { type: 'image/jpeg' })
+          new Blob([thumbnailData.buffer], { type: 'image/jpeg' })
         );
       } catch (error) {
         console.error('Error generating thumbnail:', error);
+        alert('Failed to generate thumbnail: ' + error.message);
       } finally {
-        // Hide progress indication.
         this.showProgress = false;
-        this.progress = 0;
       }
     },
     handleTimeUpdate() {
-      var video = document.getElementById('video');
-
+      const video = document.getElementById('video');
       if (video) {
         this.thumbnailTime = video.currentTime;
-
-        console.log(this.thumbnailTime);
+        console.log('Current time:', this.thumbnailTime);
       }
     },
     handleFileChange(event) {
@@ -308,44 +165,241 @@ export default {
       }
     },
     async terminate() {
-      if (this.ffmpeg) {
-        await this.ffmpeg.terminate();
-
-        await this.loadFfmpeg();
-      }
+      await ffmpegService.terminate();
+      await this.initializeFfmpeg();
     },
     downloadThumbnail(url, fileName) {
       const element = document.createElement('a');
       element.href = url;
       element.download = fileName;
-
       element.style.display = 'none';
-
       document.body.appendChild(element);
-
       element.click();
       document.body.removeChild(element);
     },
-    playHls(url) {
-      console.log(Hls.isSupported(), 'is supported');
-
-      if (Hls.isSupported()) {
-        var video = document.getElementById('video');
-        var hls = new Hls();
-
-        console.log(video, 'video');
-
-        hls.loadSource(url);
-        hls.attachMedia(video);
-        hls.on(Hls.Events.MANIFEST_PARSED, function () {
-          video.play();
-        });
+    async initializeFfmpeg() {
+      try {
+        await ffmpegService.load();
+        this.loaded = true;
+      } catch (error) {
+        console.error('Failed to initialize FFmpeg:', error);
+        alert('Failed to load video processor. Please refresh the page.');
       }
     },
   },
-  mounted() {
-    this.loadFfmpeg();
+  async mounted() {
+    await this.initializeFfmpeg();
+  },
+  beforeUnmount() {
+    // Cleanup object URLs
+    if (this.fileBlobUrl) {
+      URL.revokeObjectURL(this.fileBlobUrl);
+    }
+    if (this.thumbnailSrc) {
+      URL.revokeObjectURL(this.thumbnailSrc);
+    }
   },
 };
 </script>
-<style lang=""></style>
+<style scoped>
+.thumbnail-clipper {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: var(--space-md);
+  background-color: var(--bg-primary);
+  min-height: 100vh;
+}
+
+.thumbnail-clipper h1 {
+  font-family: var(--font-family);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-pop);
+  text-align: left;
+  margin-bottom: var(--space-lg);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--grid-line);
+  padding-bottom: var(--space-sm);
+}
+
+/* File Input Styling */
+.file-input-wrapper {
+  display: flex;
+  justify-content: center;
+  margin: var(--space-xl) 0;
+}
+
+.file-input-wrapper input[type="file"] {
+  font-family: var(--font-family);
+  padding: var(--space-xl);
+  border: 1px dashed var(--text-pop);
+  border-radius: 0;
+  background-color: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.9rem;
+  width: 100%;
+  max-width: 500px;
+  text-align: center;
+}
+
+.file-input-wrapper input[type="file"]:hover {
+  border-color: var(--accent);
+  background-color: var(--bg-surface);
+  color: var(--text-pop);
+}
+
+/* Video Player Styling */
+.video-container {
+  display: flex;
+  justify-content: center;
+  margin: var(--space-lg) 0;
+  border: 1px solid var(--grid-line);
+  padding: var(--space-sm);
+}
+
+.video-container video {
+  max-width: 100%;
+  width: 100%;
+  border-radius: 0;
+  background-color: var(--bg-surface);
+}
+
+/* Thumbnail Display */
+.thumbnail-container {
+  display: flex;
+  justify-content: center;
+  margin: var(--space-lg) 0;
+  border: 1px solid var(--grid-line);
+  padding: var(--space-sm);
+}
+
+.thumbnail-container img {
+  max-width: 100%;
+  width: 100%;
+  border-radius: 0;
+  display: block;
+}
+
+/* Button Container */
+.button-container {
+  display: flex;
+  justify-content: flex-start;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--grid-line);
+  flex-wrap: wrap;
+}
+
+/* Button Styling */
+.btn {
+  font-family: var(--font-family);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 0;
+  border: 1px solid var(--border);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+/* Icon Styling */
+.btn-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.btn-primary {
+  background-color: var(--accent);
+  color: var(--bg-primary);
+  border-color: var(--accent);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--text-pop);
+  border-color: var(--text-pop);
+  color: var(--bg-primary);
+}
+
+.btn-secondary {
+  background-color: transparent;
+  color: var(--text-secondary);
+  border-color: var(--border);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--text-pop);
+  border-color: var(--text-pop);
+  color: var(--bg-primary);
+}
+
+.btn-danger {
+  background-color: transparent;
+  color: var(--error);
+  border-color: var(--error);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background-color: var(--error);
+  color: var(--text-pop);
+  border-color: var(--error);
+}
+
+.btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Progress Bar */
+.progress-container {
+  margin: var(--space-lg) 0;
+}
+
+:deep(.v-progress-linear) {
+  border-radius: 0;
+  background-color: var(--bg-surface) !important;
+  height: 2px !important;
+}
+
+:deep(.v-progress-linear__determinate),
+:deep(.v-progress-linear__indeterminate) {
+  background-color: var(--accent) !important;
+}
+
+/* Loading State */
+.loading-text {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  margin-top: var(--space-sm);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .thumbnail-clipper {
+    padding: var(--space-sm);
+  }
+  
+  .thumbnail-clipper h1 {
+    font-size: 1.2rem;
+  }
+  
+  .button-container {
+    flex-direction: column;
+  }
+  
+  .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+</style>

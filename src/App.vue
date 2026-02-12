@@ -1,73 +1,63 @@
-<script setup>
-import HelloWorld from './components/HelloWorld.vue';
-import FfmpegDemo from './components/FfmpegDemo.vue';
-import CommandGenerator from './components/CommandGenerator.vue';
-</script>
-
 <template>
-  <div>
-    <!-- <HelloWorld msg="Vite + Vue" /> -->
-
-    <FfmpegDemo class="text-center pa-8"></FfmpegDemo>
-    <!-- <CommandGenerator></CommandGenerator> -->
+  <div class="app-layout">
+    <Sidebar :current-tool="currentTool" @change-tool="currentTool = $event" />
+    <main class="main-content">
+      <FfmpegDemo v-if="currentTool === 'thumbnail'" />
+      <MetadataViewer v-else-if="currentTool === 'metadata'" />
+    </main>
   </div>
 </template>
 
 <script>
-// Import necessary components
-import HelloWorld from './components/HelloWorld.vue';
+import Sidebar from './components/Sidebar.vue';
 import FfmpegDemo from './components/FfmpegDemo.vue';
-import CommandGenerator from './components/CommandGenerator.vue';
-import WebcodecDemo from './components/WebcodecDemo.vue';
+import MetadataViewer from './components/MetadataViewer.vue';
 
 export default {
-  // Register components for use in this template
+  name: 'App',
   components: {
-    HelloWorld,
+    Sidebar,
     FfmpegDemo,
-    CommandGenerator,
-    WebcodecDemo,
+    MetadataViewer,
   },
   data() {
     return {
-      // Define your component data here
-      tab1: 1, // Example if you need to keep track of tabs
+      currentTool: 'thumbnail',
     };
   },
-  // Include methods, computed properties, and watchers here
-  methods: {},
-  computed: {},
-  watch: {},
 };
 </script>
 
 <style>
 #app {
-  background-color: #091a28;
+  background-color: var(--bg-primary);
   margin: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  place-items: center;
+  padding: 0;
   min-width: 320px;
   min-height: 100vh;
   width: 100%;
+  font-family: var(--font-family);
 }
 
-.layout {
-  display: grid;
-  /* grid-template-columns: 300px 1fr; */
-  grid-template-columns: 1fr;
-  grid-template-rows: auto;
-  justify-items: stretch;
-  align-items: stretch;
+.app-layout {
+  display: flex;
+  min-height: 100vh;
 }
 
-.sidebar {
-  border-right: 1px solid #0f293e;
-  background-color: #091a28;
+.main-content {
+  flex: 1;
+  margin-left: 180px;
+  background-color: var(--bg-primary);
+  min-height: 100vh;
 }
 
-.body {
+@media (max-width: 768px) {
+  .app-layout {
+    flex-direction: column;
+  }
+  
+  .main-content {
+    margin-left: 0;
+  }
 }
 </style>
