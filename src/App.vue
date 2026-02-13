@@ -6,20 +6,28 @@
       @change-tool="currentTool = $event"
     />
     <main class="main-content">
+      <RuntimeStatusBar />
       <component :is="activeToolComponent" v-if="activeToolComponent" />
     </main>
   </div>
 </template>
 
 <script>
-import Sidebar from './components/Sidebar.vue';
-import FfmpegDemo from './components/FfmpegDemo.vue';
-import MetadataViewer from './components/MetadataViewer.vue';
-import HlsDownloader from './components/HlsDownloader.vue';
-import VideoConverter from './components/VideoConverter.vue';
-import ImageConverter from './components/ImageConverter.vue';
-import AudioTrimmer from './components/AudioTrimmer.vue';
-import { TOOL_DEFINITIONS } from './tools/toolRegistry.js';
+import Sidebar from "./components/Sidebar.vue";
+import RuntimeStatusBar from "./components/RuntimeStatusBar.vue";
+import FfmpegDemo from "./components/FfmpegDemo.vue";
+import MetadataViewer from "./components/MetadataViewer.vue";
+import HlsDownloader from "./components/HlsDownloader.vue";
+import VideoConverter from "./components/VideoConverter.vue";
+import ImageConverter from "./components/ImageConverter.vue";
+import AudioTrimmer from "./components/AudioTrimmer.vue";
+import AudioExtractor from "./components/AudioExtractor.vue";
+import FrameSequenceExport from "./components/FrameSequenceExport.vue";
+import MediaJoin from "./components/MediaJoin.vue";
+// import SilenceCutter from './components/SilenceCutter.vue';
+import ContactSheetGenerator from "./components/ContactSheetGenerator.vue";
+import ContainerRewrap from "./components/ContainerRewrap.vue";
+import { TOOL_DEFINITIONS } from "./tools/toolRegistry.js";
 
 const COMPONENT_MAP = {
   FfmpegDemo,
@@ -28,22 +36,31 @@ const COMPONENT_MAP = {
   VideoConverter,
   ImageConverter,
   AudioTrimmer,
+  AudioExtractor,
+  FrameSequenceExport,
+  MediaJoin,
+  // SilenceCutter,
+  ContactSheetGenerator,
+  ContainerRewrap,
 };
 
 export default {
-  name: 'App',
+  name: "App",
   components: {
     Sidebar,
+    RuntimeStatusBar,
   },
   data() {
     return {
       toolDefinitions: TOOL_DEFINITIONS,
-      currentTool: 'thumbnail',
+      currentTool: "hls-download",
     };
   },
   computed: {
     activeToolComponent() {
-      const tool = this.toolDefinitions.find((entry) => entry.id === this.currentTool);
+      const tool = this.toolDefinitions.find(
+        (entry) => entry.id === this.currentTool,
+      );
       if (!tool) return null;
       return COMPONENT_MAP[tool.component] || null;
     },

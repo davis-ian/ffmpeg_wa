@@ -1,19 +1,54 @@
-# Vue 3 + Vite
+# ClipForge
 
-This template should help get you started developing with Vue 3 in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+ClipForge is a browser-first media toolkit for video, audio, and image workflows powered by Vue + FFmpeg.wasm.
 
-## Recommended IDE Setup
+## Tool Catalog
 
-- [VS Code](https://code.visualstudio.com/) + [Vue - Official](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (previously Volar) and disable Vetur
+### Video
+- Thumbnail Clipper
+- Video Metadata
+- HLS Download
+- Convert Video
+- Frame Sequence
+- Media Join
+- Contact Sheet (Beta)
+- Container Rewrap (Beta)
+
+### Audio
+- Audio Trimmer
+- Audio Extractor
+- Silence Cutter (Beta)
+
+### Image
+- Image Converter
+
+## Runtime Status Bar
+A global status strip shows:
+- `Core`: MT / ST / Not loaded
+- `Threads`: active runtime threads
+- `Isolation`: `crossOriginIsolated` state
+- `Last Strategy`: copy/remux/transcode fallback status
 
 ## Cross-Origin Isolation
+For multithreaded FFmpeg behavior in Chromium browsers, send:
+- `Cross-Origin-Opener-Policy: same-origin`
+- `Cross-Origin-Embedder-Policy: require-corp`
 
-- Chrome/Edge/Firefox require `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` for the worker-heavy FFmpeg core to use `SharedArrayBuffer`. The dev server and Vite preview already emit those headers (`vite.config.js`), but be sure to configure your production host (Netlify, Vercel, etc.) to send them as well so the multi-threaded runtime runs on Chromium-based browsers.
+These headers are already configured in dev/preview via `vite.config.js`.
 
-## Debugging FFmpeg MT Workers
+## Development
+```bash
+npm install
+npm run dev
+npm run build
+```
 
-- **Inspect the worker in DevTools**: open `Sources → Workers` and locate `ffmpeg.worker.js`. Pause inside the worker (`debugger` or breakpoints on `onmessage`) while a thumbnail is processing to see whether FFmpeg is stuck on `exec()`, waiting for I/O, or hitting an abort. You can inspect the worker’s `ffmpeg` object, FS state, and current arguments directly from the paused context.
-- **Track worker activity via Performance**: start a Performance recording, trigger thumbnail generation, then stop and examine the flame chart. Look for long-running tasks in the worker thread to verify FFmpeg is still making progress even if the UI shows "Processing video…".
-- **Monitor log & progress events**: our `ffmpegService` already logs `ffmpeg` stderr entries, progress callbacks, and execution duration. If you need less console noise, temporarily forward `this.progressCallbacks` to the UI or use DevTools to inspect the worker without additional console output.
-- **Confirm cross-origin isolation**: Chrome needs COOP/COEP headers for SharedArrayBuffer. Use the Network tab to confirm the HTML response contains `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp`, and verify `window.crossOriginIsolated === true` in the console before loading FFmpeg.
-- **Adjust worker threads manually**: when debugging, call `ffmpegService.setWorkerThreads(2)` (or another positive integer) from the console before running `generateThumbnail()` to force a specific thread count. This helps isolate whether Chrome's behavior improves once the threaded worker count is capped for large files.
+## Architecture Docs
+- [Architecture](docs/ARCHITECTURE.md)
+- [Tool Registry Guide](docs/TOOL_REGISTRY.md)
+- [FFmpeg Runtime Status](docs/FFMPEG_RUNTIME_STATUS.md)
+- [Contributing Media Tools](docs/CONTRIBUTING_MEDIA_TOOLS.md)
+- [FFmpeg Service Architecture](docs/FFMPEG_SERVICE.md)
+
+## Notes
+ClipForge uses a safe-first strategy: lightweight copy/remux/extract operations are preferred by default, with transcode fallback when required.

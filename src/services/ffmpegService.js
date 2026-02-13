@@ -5,8 +5,8 @@ import { toBlobURL, fetchFile } from "@ffmpeg/util";
 const FFMPEG_CORE_VERSION = "0.12.6";
 const FFMPEG_CORE_MT_URL = `https://unpkg.com/@ffmpeg/core-mt@${FFMPEG_CORE_VERSION}/dist/esm`;
 const FFMPEG_CORE_ST_URL = `https://unpkg.com/@ffmpeg/core@${FFMPEG_CORE_VERSION}/dist/esm`;
-// const MAX_FFMPEG_THREADS = 16;
-const MAX_FFMPEG_THREADS = 4;
+const MAX_FFMPEG_THREADS = 16;
+// const MAX_FFMPEG_THREADS = 4;
 
 /**
  * FFmpegService - Centralized video processing service
@@ -20,10 +20,12 @@ class FFmpegService {
     this.loadError = null;
     this.logCallbacks = new Set();
     this.progressCallbacks = new Set();
+    this.runtimeStatusCallbacks = new Set();
     this.capturedLogs = [];
     this.workerThreadsOverride = null;
     this.workerThreads = this._resolveWorkerThreads();
     this.coreVariant = null;
+    this.lastOperationStrategy = null;
   }
 
   _isCrossOriginIsolated() {
@@ -57,6 +59,17 @@ class FFmpegService {
 
   _resolveActiveThreadCount() {
     return this.coreVariant === "mt" ? this.workerThreads : 1;
+  }
+
+  _emitRuntimeStatus() {
+    const status = this.getRuntimeStatus();
+    this.runtimeStatusCallbacks.forEach((cb) => {
+      try {
+        cb(status);
+      } catch (err) {
+        console.error("Runtime status callback error:", err);
+      }
+    });
   }
 
   _replaceInputArg(args, inputName, replacementPath) {
@@ -116,6 +129,67 @@ class FFmpegService {
       "[FFmpegService] worker thread override set to",
       this.workerThreads,
     );
+    this._emitRuntimeStatus();
+  }
+
+  resetWorkerThreads() {
+    this.workerThreadsOverride = null;
+    this.workerThreads = this._detectWorkerThreads();
+    this._emitRuntimeStatus();
+  }
+
+  async withTemporaryWorkerThreads(threadCount, task) {
+    const previousOverride = this.workerThreadsOverride;
+    const previousWasLoaded = this.isLoaded;
+    const restoreOverride = async () => {
+      if (previousOverride === null) {
+        this.resetWorkerThreads();
+      } else {
+        this.setWorkerThreads(previousOverride);
+      }
+    };
+
+    this.setWorkerThreads(threadCount);
+    try {
+      await this.terminate();
+      await this.load();
+      return await task();
+    } finally {
+      await restoreOverride();
+      await this.terminate();
+      try {
+        if (previousWasLoaded) {
+          await this.load();
+        }
+      } catch (restoreLoadError) {
+        console.error(
+          "[FFmpegService] Failed to restore previous runtime after temporary thread override",
+          restoreLoadError,
+        );
+      }
+    }
+  }
+
+  setLastOperationStrategy(strategy) {
+    this.lastOperationStrategy = strategy || null;
+    this._emitRuntimeStatus();
+  }
+
+  getRuntimeStatus() {
+    return {
+      coreVariant: this.coreVariant,
+      configuredThreads: this.workerThreads,
+      activeThreads: this._resolveActiveThreadCount(),
+      crossOriginIsolated: this._isCrossOriginIsolated(),
+      isLoaded: this.isLoaded,
+      lastOperationStrategy: this.lastOperationStrategy,
+    };
+  }
+
+  onRuntimeStatus(callback) {
+    this.runtimeStatusCallbacks.add(callback);
+    callback(this.getRuntimeStatus());
+    return () => this.runtimeStatusCallbacks.delete(callback);
   }
 
   /**
@@ -294,6 +368,7 @@ class FFmpegService {
       this.coreVariant = bundle.variant;
       this.isLoaded = true;
       this.isLoading = false;
+      this._emitRuntimeStatus();
 
       console.log("[FFmpegService] Loaded successfully");
       return true;
@@ -301,6 +376,7 @@ class FFmpegService {
       this.isLoading = false;
       this.loadError = error.message;
       this.coreVariant = null;
+      this._emitRuntimeStatus();
       console.error("[FFmpegService] Failed to load:", error, {
         crossOriginIsolated: this._isCrossOriginIsolated(),
         workerThreads: this.workerThreads,
@@ -358,6 +434,21 @@ class FFmpegService {
     await ffmpeg.deleteFile(name);
   }
 
+  async listDir(path) {
+    const ffmpeg = this.getInstance();
+    return await ffmpeg.listDir(path);
+  }
+
+  async createDir(path) {
+    const ffmpeg = this.getInstance();
+    await ffmpeg.createDir(path);
+  }
+
+  async deleteDir(path) {
+    const ffmpeg = this.getInstance();
+    await ffmpeg.deleteDir(path);
+  }
+
   /**
    * Execute FFmpeg command
    * @param {string[]} args - Command arguments
@@ -378,9 +469,11 @@ class FFmpegService {
       this.isLoaded = false;
       this.isLoading = false;
       this.coreVariant = null;
+      this.lastOperationStrategy = null;
       this.clearLogs();
       this.logCallbacks.clear();
       this.progressCallbacks.clear();
+      this._emitRuntimeStatus();
     }
   }
 

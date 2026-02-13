@@ -2,14 +2,12 @@
   <div class="metadata-viewer">
     <h1>Video Metadata</h1>
     
-    <div class="file-input-wrapper" v-if="!metadata && !isLoading">
-      <input
-        type="file"
-        @change="handleFileChange"
-        ref="fileInput"
-        accept="video/*"
-      />
-    </div>
+    <FileInput
+      v-if="!metadata && !isLoading"
+      ref="fileInput"
+      accept="video/*"
+      @change="handleFileChange"
+    />
 
     <div class="progress-container" v-if="isLoading">
       <div class="progress-bar">
@@ -125,9 +123,13 @@
 
 <script>
 import { ffmpegService, formatUtils } from '../services/ffmpegService.js';
+import FileInput from './ui/FileInput.vue';
 
 export default {
   name: 'MetadataViewer',
+  components: {
+    FileInput,
+  },
   data() {
     return {
       isLoading: false,
@@ -186,7 +188,7 @@ export default {
       this.fileBlobUrl = null;
       this.error = null;
       if (this.$refs.fileInput) {
-        this.$refs.fileInput.value = '';
+        this.$refs.fileInput.clear?.();
       }
     },
   },
@@ -213,32 +215,6 @@ export default {
   text-transform: uppercase;
   border-bottom: 1px solid var(--grid-line);
   padding-bottom: var(--space-sm);
-}
-
-.file-input-wrapper {
-  display: flex;
-  justify-content: center;
-  margin: var(--space-xl) 0;
-}
-
-.file-input-wrapper input[type="file"] {
-  font-family: var(--font-family);
-  padding: var(--space-xl);
-  border: 1px dashed var(--text-pop);
-  border-radius: 0;
-  background-color: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-size: 0.9rem;
-  width: 100%;
-  max-width: 500px;
-  text-align: center;
-}
-
-.file-input-wrapper input[type="file"]:hover {
-  border-color: var(--accent);
-  background-color: var(--bg-surface);
-  color: var(--text-pop);
 }
 
 .progress-container {

@@ -4,9 +4,8 @@
 
     <div class="panel">
       <label for="audioInput">Input Audio/Video</label>
-      <input
+      <FileInput
         id="audioInput"
-        type="file"
         accept="audio/*,video/*"
         :disabled="isProcessing"
         @change="handleFileChange"
@@ -129,11 +128,13 @@ import { ffmpegService } from '../services/ffmpegService.js';
 import { audioService } from '../services/audioService.js';
 import ProcessingProgress from './ProcessingProgress.vue';
 import { formatMediaError } from '../services/mediaErrors.js';
+import FileInput from './ui/FileInput.vue';
 
 export default {
   name: 'AudioTrimmer',
   components: {
     ProcessingProgress,
+    FileInput,
   },
   data() {
     return {

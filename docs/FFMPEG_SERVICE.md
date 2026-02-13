@@ -237,6 +237,9 @@ export default {
 - `extractMetadata(file)` - Extract video metadata
 - `generateThumbnail(file, time, options)` - Generate thumbnail
 - `terminate()` - Shutdown FFmpeg instance
+- `getRuntimeStatus()` - Read runtime core/thread/isolation state
+- `onRuntimeStatus(callback)` - Subscribe to runtime status updates
+- `setLastOperationStrategy(strategy)` - Publish last operation strategy to global status
 
 ### Events
 

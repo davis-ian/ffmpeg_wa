@@ -1,18 +1,21 @@
 <template>
   <div>
     <div class="ma-8">
-      <input
-        style="border: 2px solid"
-        type="file"
-        @change="handleFileChange"
+      <FileInput
         accept="video/*"
+        @change="handleFileChange"
       />
       <canvas ref="outputCanvas"></canvas>
     </div>
   </div>
 </template>
 <script>
+import FileInput from './ui/FileInput.vue';
+
 export default {
+  components: {
+    FileInput,
+  },
   data() {
     return {
       selectedFile: null,

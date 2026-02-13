@@ -4,9 +4,8 @@
 
     <div class="panel">
       <label for="imageInput">Input Image</label>
-      <input
+      <FileInput
         id="imageInput"
-        type="file"
         accept="image/png,image/jpeg,image/webp"
         :disabled="isConverting"
         @change="handleFileChange"
@@ -80,11 +79,13 @@
 import { imageService } from '../services/imageService.js';
 import ProcessingProgress from './ProcessingProgress.vue';
 import { formatMediaError } from '../services/mediaErrors.js';
+import FileInput from './ui/FileInput.vue';
 
 export default {
   name: 'ImageConverter',
   components: {
     ProcessingProgress,
+    FileInput,
   },
   data() {
     return {

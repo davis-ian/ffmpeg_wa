@@ -3,9 +3,8 @@
     <h1>Video Converter Example</h1>
     
     <div class="file-section">
-      <input 
-        type="file" 
-        @change="handleFile" 
+      <FileInput
+        @change="handleFile"
         accept="video/*"
         :disabled="isConverting"
       />
@@ -56,9 +55,13 @@
  * - Downloading results
  */
 import { ffmpegService } from '../services/ffmpegService.js';
+import FileInput from './ui/FileInput.vue';
 
 export default {
   name: 'ExampleConverter',
+  components: {
+    FileInput,
+  },
   data() {
     return {
       file: null,

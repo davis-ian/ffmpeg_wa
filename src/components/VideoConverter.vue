@@ -4,9 +4,8 @@
 
     <div class="panel">
       <label for="videoInput">Input Video (MP4)</label>
-      <input
+      <FileInput
         id="videoInput"
-        type="file"
         accept="video/mp4,video/*"
         :disabled="isConverting"
         @change="handleFileChange"
@@ -53,11 +52,13 @@
 import { ffmpegService } from '../services/ffmpegService.js';
 import ProcessingProgress from './ProcessingProgress.vue';
 import { formatMediaError } from '../services/mediaErrors.js';
+import FileInput from './ui/FileInput.vue';
 
 export default {
   name: 'VideoConverter',
   components: {
     ProcessingProgress,
+    FileInput,
   },
   data() {
     return {
@@ -76,11 +77,6 @@ export default {
         { value: 'ts-remux', label: 'TS', hint: 'Copy Streams (Fast)' },
         { value: 'mkv-remux', label: 'MKV', hint: 'Copy Streams' },
         { value: 'mov-remux', label: 'MOV', hint: 'Copy Streams' },
-        { value: 'm4a-extract', label: 'M4A', hint: 'Audio Extract' },
-        { value: 'mp3-extract', label: 'MP3', hint: 'Audio Transcode' },
-        { value: 'gif-short', label: 'GIF', hint: 'First 3 Seconds' },
-        { value: 'webm', label: 'WebM', hint: 'VP8 + Opus' },
-        { value: 'mp4-transcode', label: 'MP4', hint: 'H.264 + AAC' },
         { value: 'mp4-remux', label: 'MP4', hint: 'Copy Streams' },
       ];
     },
@@ -88,12 +84,7 @@ export default {
       if (this.outputFormat === 'ts-remux') return 'Convert MP4 -> TS (Copy)';
       if (this.outputFormat === 'mkv-remux') return 'Convert MP4 -> MKV (Copy)';
       if (this.outputFormat === 'mov-remux') return 'Convert MP4 -> MOV (Copy)';
-      if (this.outputFormat === 'm4a-extract') return 'Extract Audio -> M4A';
-      if (this.outputFormat === 'mp3-extract') return 'Extract Audio -> MP3';
-      if (this.outputFormat === 'gif-short') return 'Convert MP4 -> GIF (3s)';
-      if (this.outputFormat === 'mp4-transcode') return 'Convert MP4 -> MP4 (Transcode)';
-      if (this.outputFormat === 'mp4-remux') return 'Convert MP4 -> MP4 (Copy)';
-      return 'Convert MP4 -> WebM';
+      return 'Convert MP4 -> MP4 (Copy)';
     },
   },
   watch: {
@@ -131,12 +122,8 @@ export default {
     getOutputExtension() {
       if (this.outputFormat === 'mkv-remux') return 'mkv';
       if (this.outputFormat === 'mov-remux') return 'mov';
-      if (this.outputFormat === 'm4a-extract') return 'm4a';
-      if (this.outputFormat === 'mp3-extract') return 'mp3';
-      if (this.outputFormat === 'gif-short') return 'gif';
       if (this.outputFormat === 'ts-remux') return 'ts';
-      if (this.outputFormat.startsWith('mp4')) return 'mp4';
-      return 'webm';
+      return 'mp4';
     },
 
     async convert() {
@@ -158,37 +145,15 @@ export default {
       });
 
       try {
-        ffmpegService.setWorkerThreads(1);
-        await ffmpegService.terminate();
-        await ffmpegService.load();
-        let ffmpegArgs = this.buildArgs(inputName, outputName);
-        let outputData;
-
-        try {
-          outputData = await ffmpegService.processVideo(
+        const outputData = await ffmpegService.withTemporaryWorkerThreads(1, async () => {
+          const ffmpegArgs = this.buildArgs(inputName, outputName);
+          return await ffmpegService.processVideo(
             this.selectedFile,
             inputName,
             ffmpegArgs,
             outputName,
           );
-        } catch (primaryError) {
-          const shouldRetryWebm =
-            this.outputFormat === 'webm' &&
-            String(primaryError?.message || '').toLowerCase().includes('memory access out of bounds');
-
-          if (!shouldRetryWebm) {
-            throw primaryError;
-          }
-
-          console.warn('[VideoConverter] retrying webm with low-memory profile');
-          ffmpegArgs = this.buildWebmFallbackArgs(inputName, outputName);
-          outputData = await ffmpegService.processVideo(
-            this.selectedFile,
-            inputName,
-            ffmpegArgs,
-            outputName,
-          );
-        }
+        });
 
         if (this.downloadUrl) {
           URL.revokeObjectURL(this.downloadUrl);
@@ -200,15 +165,9 @@ export default {
               ? 'video/x-matroska'
               : extension === 'mov'
                 ? 'video/quicktime'
-                : extension === 'm4a'
-                  ? 'audio/mp4'
-                  : extension === 'mp3'
-                    ? 'audio/mpeg'
-                    : extension === 'gif'
-                      ? 'image/gif'
-            : extension === 'ts'
+                : extension === 'ts'
               ? 'video/mp2t'
-              : 'video/webm';
+              : 'video/mp4';
         this.downloadUrl = URL.createObjectURL(new Blob([outputData.buffer], { type: mimeType }));
         this.progressPercent = 100;
       } catch (error) {
@@ -234,41 +193,6 @@ export default {
 
       if (this.outputFormat === 'mov-remux') {
         return ['-threads', '1', '-i', inputName, '-c', 'copy', outputName];
-      }
-
-      if (this.outputFormat === 'm4a-extract') {
-        return ['-threads', '1', '-i', inputName, '-vn', '-c:a', 'copy', outputName];
-      }
-
-      if (this.outputFormat === 'mp3-extract') {
-        return [
-          '-threads',
-          '1',
-          '-i',
-          inputName,
-          '-vn',
-          '-c:a',
-          'libmp3lame',
-          '-b:a',
-          '192k',
-          outputName,
-        ];
-      }
-
-      if (this.outputFormat === 'gif-short') {
-        return [
-          '-threads',
-          '1',
-          '-ss',
-          '0',
-          '-t',
-          '3',
-          '-i',
-          inputName,
-          '-vf',
-          'fps=10,scale=480:-1:flags=lanczos',
-          outputName,
-        ];
       }
 
       if (this.outputFormat === 'ts-remux') {
@@ -298,77 +222,15 @@ export default {
           outputName,
         ];
       }
-
-      if (this.outputFormat === 'mp4-transcode') {
-        return [
-          '-threads',
-          '1',
-          '-i',
-          inputName,
-          '-vf',
-          'scale=min(1280,iw):-2',
-          '-c:v',
-          'libx264',
-          '-preset',
-          'veryfast',
-          '-crf',
-          '28',
-          '-c:a',
-          'aac',
-          '-b:a',
-          '128k',
-          '-movflags',
-          'faststart',
-          outputName,
-        ];
-      }
-
       return [
         '-threads',
         '1',
         '-i',
         inputName,
-        '-vf',
-        'scale=min(1280,iw):-2',
-        '-c:v',
-        'libvpx',
-        '-crf',
-        '32',
-        '-b:v',
-        '0',
-        '-deadline',
-        'good',
-        '-cpu-used',
-        '4',
-        '-c:a',
-        'libopus',
-        '-b:a',
-        '96k',
-        outputName,
-      ];
-    },
-
-    buildWebmFallbackArgs(inputName, outputName) {
-      return [
-        '-threads',
-        '1',
-        '-i',
-        inputName,
-        '-vf',
-        'scale=min(854,iw):-2,fps=24',
-        '-an',
-        '-c:v',
-        'libvpx',
-        '-deadline',
-        'realtime',
-        '-cpu-used',
-        '8',
-        '-b:v',
-        '700k',
-        '-maxrate',
-        '900k',
-        '-bufsize',
-        '1800k',
+        '-c',
+        'copy',
+        '-movflags',
+        'faststart',
         outputName,
       ];
     },
@@ -411,14 +273,6 @@ label {
   font-size: 0.85rem;
   color: var(--text-secondary);
   text-transform: uppercase;
-}
-
-input[type='file'] {
-  width: 100%;
-  padding: var(--space-sm);
-  border: 1px solid var(--border);
-  background: var(--bg-primary);
-  color: var(--text-primary);
 }
 
 .format-grid {

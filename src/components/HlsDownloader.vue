@@ -18,7 +18,7 @@
           @click="loadManifest"
           :disabled="!manifestUrl || isLoading || isDownloading || isRemuxing"
         >
-          {{ isLoading ? 'Loading...' : 'Load Playlist' }}
+          {{ isLoading ? "Loading..." : "Load Playlist" }}
         </button>
       </div>
     </div>
@@ -30,7 +30,11 @@
         v-model="selectedVariantUrl"
         :disabled="isLoading || isDownloading || isRemuxing"
       >
-        <option v-for="variant in variants" :key="variant.url" :value="variant.url">
+        <option
+          v-for="variant in variants"
+          :key="variant.url"
+          :value="variant.url"
+        >
           {{ variant.label }}
         </option>
       </select>
@@ -38,7 +42,13 @@
 
     <div class="panel" v-if="manifestLoaded">
       <p class="meta">Preview</p>
-      <video ref="previewVideo" class="preview-player" controls playsinline muted></video>
+      <video
+        ref="previewVideo"
+        class="preview-player"
+        controls
+        playsinline
+        muted
+      ></video>
     </div>
 
     <div class="panel" v-if="manifestLoaded">
@@ -48,7 +58,10 @@
       </p>
       <div class="progress-wrap" v-if="isDownloading || isRemuxing">
         <div class="progress-bar">
-          <div class="progress-fill" :style="{ width: `${downloadProgress}%` }"></div>
+          <div
+            class="progress-fill"
+            :style="{ width: `${downloadProgress}%` }"
+          ></div>
         </div>
         <span class="progress-text">{{ downloadProgress }}%</span>
       </div>
@@ -73,36 +86,37 @@
 
     <p class="error" v-if="errorMessage">{{ errorMessage }}</p>
     <p class="note">
-      Notes: this downloader requires CORS access to the manifest and segments. Encrypted DRM streams are not supported.
+      Notes: this downloader requires CORS access to the manifest and segments.
+      Encrypted DRM streams are not supported.
     </p>
   </div>
 </template>
 
 <script>
-import { nextTick } from 'vue';
-import Hls from 'hls.js';
-import { ffmpegService } from '../services/ffmpegService.js';
+import { nextTick } from "vue";
+import Hls from "hls.js";
+import { ffmpegService } from "../services/ffmpegService.js";
 
-const M3U_HEADER = '#EXTM3U';
+const M3U_HEADER = "#EXTM3U";
 
 export default {
-  name: 'HlsDownloader',
+  name: "HlsDownloader",
   data() {
     return {
-      manifestUrl: '',
+      manifestUrl: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
       isLoading: false,
       isDownloading: false,
       isRemuxing: false,
       manifestLoaded: false,
       variants: [],
-      selectedVariantUrl: '',
+      selectedVariantUrl: "",
       segmentUrls: [],
       segmentCount: 0,
       downloadedSegments: 0,
       downloadUrl: null,
-      outputFileName: 'stream.mp4',
-      previewSourceUrl: '',
-      errorMessage: '',
+      outputFileName: "stream.mp4",
+      previewSourceUrl: "",
+      errorMessage: "",
       hlsInstance: null,
     };
   },
@@ -110,16 +124,19 @@ export default {
     downloadProgress() {
       if (this.isRemuxing) return 100;
       if (!this.segmentCount) return 0;
-      return Math.min(100, Math.round((this.downloadedSegments / this.segmentCount) * 100));
+      return Math.min(
+        100,
+        Math.round((this.downloadedSegments / this.segmentCount) * 100),
+      );
     },
     actionLabel() {
-      if (this.isRemuxing) return 'Muxing MP4...';
-      if (this.isDownloading) return 'Downloading Segments...';
-      return 'Download Stream (.mp4)';
+      if (this.isRemuxing) return "Muxing MP4...";
+      if (this.isDownloading) return "Downloading Segments...";
+      return "Download Stream (.mp4)";
     },
     statusLabel() {
       if (this.isRemuxing) {
-        return 'Converting to MP4...';
+        return "Converting to MP4...";
       }
       return `Downloaded: ${this.downloadedSegments} / ${this.segmentCount}`;
     },
@@ -129,14 +146,15 @@ export default {
       if (!this.manifestLoaded || !nextUrl) {
         return;
       }
-      this.errorMessage = '';
+      this.errorMessage = "";
       this.isLoading = true;
       try {
         await this.loadVariantSegments(nextUrl);
         this.segmentCount = this.segmentUrls.length;
         await this.setupPreview(nextUrl);
       } catch (error) {
-        this.errorMessage = error?.message || 'Failed to switch variant stream.';
+        this.errorMessage =
+          error?.message || "Failed to switch variant stream.";
       } finally {
         this.isLoading = false;
       }
@@ -145,11 +163,11 @@ export default {
   methods: {
     async loadManifest() {
       this.resetDownloadState();
-      this.errorMessage = '';
+      this.errorMessage = "";
       this.manifestLoaded = false;
 
       if (!this.manifestUrl) {
-        this.errorMessage = 'Enter an HLS manifest URL.';
+        this.errorMessage = "Enter an HLS manifest URL.";
         return;
       }
 
@@ -166,7 +184,7 @@ export default {
           await this.loadVariantSegments(this.selectedVariantUrl);
         } else {
           this.variants = [];
-          this.selectedVariantUrl = '';
+          this.selectedVariantUrl = "";
           this.segmentUrls = this.parseMediaPlaylist(text, baseUrl.href);
         }
 
@@ -177,7 +195,7 @@ export default {
         const previewUrl = this.selectedVariantUrl || baseUrl.href;
         await this.setupPreview(previewUrl);
       } catch (error) {
-        this.errorMessage = error?.message || 'Failed to load manifest.';
+        this.errorMessage = error?.message || "Failed to load manifest.";
       } finally {
         this.isLoading = false;
       }
@@ -190,7 +208,7 @@ export default {
     },
 
     async downloadSegments() {
-      this.errorMessage = '';
+      this.errorMessage = "";
       this.downloadedSegments = 0;
 
       if (this.variants.length > 0 && this.selectedVariantUrl) {
@@ -198,13 +216,14 @@ export default {
           await this.loadVariantSegments(this.selectedVariantUrl);
           this.segmentCount = this.segmentUrls.length;
         } catch (error) {
-          this.errorMessage = error?.message || 'Failed to load selected variant.';
+          this.errorMessage =
+            error?.message || "Failed to load selected variant.";
           return;
         }
       }
 
       if (!this.segmentUrls.length) {
-        this.errorMessage = 'No media segments found in playlist.';
+        this.errorMessage = "No media segments found in playlist.";
         return;
       }
 
@@ -235,10 +254,11 @@ export default {
           URL.revokeObjectURL(this.downloadUrl);
         }
 
-        const blob = new Blob([mp4Data.buffer], { type: 'video/mp4' });
+        const blob = new Blob([mp4Data.buffer], { type: "video/mp4" });
         this.downloadUrl = URL.createObjectURL(blob);
       } catch (error) {
-        this.errorMessage = error?.message || 'Failed while downloading segments.';
+        this.errorMessage =
+          error?.message || "Failed while downloading segments.";
       } finally {
         this.isDownloading = false;
         this.isRemuxing = false;
@@ -254,12 +274,12 @@ export default {
         await ffmpegService.load();
         await ffmpegService.writeFile(inputName, tsData);
         const exitCode = await ffmpegService.exec([
-          '-i',
+          "-i",
           inputName,
-          '-c',
-          'copy',
-          '-movflags',
-          'faststart',
+          "-c",
+          "copy",
+          "-movflags",
+          "faststart",
           outputName,
         ]);
         if (exitCode !== 0) {
@@ -285,13 +305,13 @@ export default {
       await nextTick();
       const video = this.$refs.previewVideo;
       if (!video) {
-        console.warn('[HlsDownloader] preview video element not mounted yet');
+        console.warn("[HlsDownloader] preview video element not mounted yet");
         return;
       }
 
       this.destroyPreview();
       video.onloadedmetadata = () => {
-        console.log('[HlsDownloader] preview metadata loaded', {
+        console.log("[HlsDownloader] preview metadata loaded", {
           duration: video.duration,
           width: video.videoWidth,
           height: video.videoHeight,
@@ -299,8 +319,11 @@ export default {
       };
       video.onerror = () => {
         const mediaError = video.error;
-        console.error('[HlsDownloader] preview media element error', mediaError);
-        this.errorMessage = 'Preview failed to load in video element.';
+        console.error(
+          "[HlsDownloader] preview media element error",
+          mediaError,
+        );
+        this.errorMessage = "Preview failed to load in video element.";
       };
 
       if (Hls.isSupported()) {
@@ -313,25 +336,25 @@ export default {
         });
         this.hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
           // hls.js owns MediaSource attachment; calling video.load() here can invalidate blob URLs in Chromium.
-          console.log('[HlsDownloader] hls.js manifest parsed');
+          console.log("[HlsDownloader] hls.js manifest parsed");
         });
         this.hlsInstance.on(Hls.Events.ERROR, (_event, data) => {
           if (data?.fatal) {
             this.errorMessage = `Preview error: ${data.type}`;
-            console.error('[HlsDownloader] fatal preview error', data);
+            console.error("[HlsDownloader] fatal preview error", data);
           }
         });
         return;
       }
 
-      if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      if (video.canPlayType("application/vnd.apple.mpegurl")) {
         video.src = sourceUrl;
         video.load();
-        console.log('[HlsDownloader] using native HLS preview');
+        console.log("[HlsDownloader] using native HLS preview");
         return;
       }
 
-      this.errorMessage = 'HLS preview is not supported in this browser.';
+      this.errorMessage = "HLS preview is not supported in this browser.";
     },
 
     destroyPreview() {
@@ -341,23 +364,26 @@ export default {
         this.hlsInstance = null;
       }
       if (video) {
-        video.removeAttribute('src');
+        video.removeAttribute("src");
         video.load();
       }
     },
 
     parseMasterPlaylist(text, baseUrl) {
-      const lines = text.split('\n').map((line) => line.trim()).filter(Boolean);
+      const lines = text
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean);
       const variants = [];
 
       for (let i = 0; i < lines.length; i += 1) {
         const line = lines[i];
-        if (!line.startsWith('#EXT-X-STREAM-INF')) {
+        if (!line.startsWith("#EXT-X-STREAM-INF")) {
           continue;
         }
 
         const nextLine = lines[i + 1];
-        if (!nextLine || nextLine.startsWith('#')) {
+        if (!nextLine || nextLine.startsWith("#")) {
           continue;
         }
 
@@ -369,13 +395,15 @@ export default {
           labelParts.push(resolutionMatch[1]);
         }
         if (bandwidthMatch) {
-          labelParts.push(`${Math.round(Number(bandwidthMatch[1]) / 1000)} kbps`);
+          labelParts.push(
+            `${Math.round(Number(bandwidthMatch[1]) / 1000)} kbps`,
+          );
         }
 
         const resolvedUrl = new URL(nextLine, baseUrl).href;
         variants.push({
           url: resolvedUrl,
-          label: labelParts.length ? labelParts.join(' - ') : resolvedUrl,
+          label: labelParts.length ? labelParts.join(" - ") : resolvedUrl,
         });
       }
 
@@ -383,11 +411,11 @@ export default {
     },
 
     parseMediaPlaylist(text, baseUrl) {
-      const lines = text.split('\n').map((line) => line.trim());
+      const lines = text.split("\n").map((line) => line.trim());
       const media = [];
 
       for (const line of lines) {
-        if (!line || line.startsWith('#')) {
+        if (!line || line.startsWith("#")) {
           continue;
         }
         media.push(new URL(line, baseUrl).href);
@@ -397,7 +425,7 @@ export default {
     },
 
     async fetchText(url) {
-      const response = await fetch(url, { mode: 'cors' });
+      const response = await fetch(url, { mode: "cors" });
       if (!response.ok) {
         throw new Error(`Request failed (${response.status}) for ${url}`);
       }
@@ -405,9 +433,11 @@ export default {
     },
 
     async fetchBinary(url) {
-      const response = await fetch(url, { mode: 'cors' });
+      const response = await fetch(url, { mode: "cors" });
       if (!response.ok) {
-        throw new Error(`Segment request failed (${response.status}) for ${url}`);
+        throw new Error(
+          `Segment request failed (${response.status}) for ${url}`,
+        );
       }
       const buffer = await response.arrayBuffer();
       return new Uint8Array(buffer);
@@ -415,28 +445,28 @@ export default {
 
     assertM3U(text) {
       if (!text || !text.includes(M3U_HEADER)) {
-        throw new Error('URL does not appear to be a valid .m3u8 playlist.');
+        throw new Error("URL does not appear to be a valid .m3u8 playlist.");
       }
     },
 
     buildOutputFileName(sourceUrl) {
       try {
         const pathname = new URL(sourceUrl).pathname;
-        const base = pathname.split('/').pop() || 'stream';
-        const clean = base.replace(/\.m3u8$/i, '') || 'stream';
+        const base = pathname.split("/").pop() || "stream";
+        const clean = base.replace(/\.m3u8$/i, "") || "stream";
         return `${clean}.mp4`;
       } catch {
-        return 'stream.mp4';
+        return "stream.mp4";
       }
     },
 
     resetDownloadState() {
       this.variants = [];
-      this.selectedVariantUrl = '';
+      this.selectedVariantUrl = "";
       this.segmentUrls = [];
       this.segmentCount = 0;
       this.downloadedSegments = 0;
-      this.previewSourceUrl = '';
+      this.previewSourceUrl = "";
       if (this.downloadUrl) {
         URL.revokeObjectURL(this.downloadUrl);
         this.downloadUrl = null;
