@@ -1,33 +1,50 @@
 <template>
   <aside class="sidebar">
     <div class="sidebar-header">
-      <h2 class="app-title">VideoTools</h2>
+      <h2 class="app-title">MediaTools</h2>
     </div>
-    
+
     <nav class="sidebar-nav">
-      <button
-        v-for="item in navItems"
-        :key="item.id"
-        class="nav-item"
-        :class="{ active: currentTool === item.id }"
-        @click="$emit('change-tool', item.id)"
-      >
-        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path v-if="item.id === 'thumbnail'" d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-          <circle v-if="item.id === 'thumbnail'" cx="12" cy="13" r="4"/>
-          <path v-if="item.id === 'metadata'" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-          <polyline v-if="item.id === 'metadata'" points="14 2 14 8 20 8"/>
-          <line v-if="item.id === 'metadata'" x1="16" y1="13" x2="8" y2="13"/>
-          <line v-if="item.id === 'metadata'" x1="16" y1="17" x2="8" y2="17"/>
-          <polyline v-if="item.id === 'metadata'" points="10 9 9 9 8 9"/>
-          <rect v-if="item.id === 'hls-download'" x="3" y="4" width="18" height="16" rx="2"/>
-          <polyline v-if="item.id === 'hls-download'" points="8 11 12 15 16 11"/>
-          <line v-if="item.id === 'hls-download'" x1="12" y1="8" x2="12" y2="15"/>
-        </svg>
-        <span class="nav-label">{{ item.name }}</span>
-      </button>
+      <section v-for="group in groupedTools" :key="group.key" class="nav-group">
+        <h3 class="group-title">{{ group.label }}</h3>
+
+        <button
+          v-for="item in group.items"
+          :key="item.id"
+          class="nav-item"
+          :class="{ active: currentTool === item.id }"
+          @click="$emit('change-tool', item.id)"
+        >
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path v-if="item.id === 'thumbnail'" d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+            <circle v-if="item.id === 'thumbnail'" cx="12" cy="13" r="4"/>
+
+            <path v-if="item.id === 'metadata'" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline v-if="item.id === 'metadata'" points="14 2 14 8 20 8"/>
+            <line v-if="item.id === 'metadata'" x1="16" y1="13" x2="8" y2="13"/>
+            <line v-if="item.id === 'metadata'" x1="16" y1="17" x2="8" y2="17"/>
+
+            <rect v-if="item.id === 'hls-download'" x="3" y="4" width="18" height="16" rx="2"/>
+            <polyline v-if="item.id === 'hls-download'" points="8 11 12 15 16 11"/>
+            <line v-if="item.id === 'hls-download'" x1="12" y1="8" x2="12" y2="15"/>
+
+            <rect v-if="item.id === 'converter'" x="3" y="5" width="18" height="14" rx="2"/>
+            <path v-if="item.id === 'converter'" d="M10 9l-3 3 3 3"/>
+            <path v-if="item.id === 'converter'" d="M14 9l3 3-3 3"/>
+
+            <path v-if="item.id === 'audio-trimmer'" d="M9 18V5l12-2v13"/>
+            <circle v-if="item.id === 'audio-trimmer'" cx="6" cy="18" r="3"/>
+            <circle v-if="item.id === 'audio-trimmer'" cx="18" cy="16" r="3"/>
+
+            <rect v-if="item.id === 'image-converter'" x="3" y="5" width="18" height="14" rx="2"/>
+            <circle v-if="item.id === 'image-converter'" cx="9" cy="10" r="2"/>
+            <path v-if="item.id === 'image-converter'" d="M21 16l-5-5L5 22"/>
+          </svg>
+          <span class="nav-label">{{ item.label }}</span>
+        </button>
+      </section>
     </nav>
-    
+
     <div class="sidebar-footer">
       <p class="version">v1.0</p>
     </div>
@@ -35,6 +52,8 @@
 </template>
 
 <script>
+import { TOOL_CATEGORY_LABELS, TOOL_CATEGORY_ORDER } from '../tools/toolRegistry.js';
+
 export default {
   name: 'Sidebar',
   props: {
@@ -42,22 +61,29 @@ export default {
       type: String,
       required: true,
     },
+    tools: {
+      type: Array,
+      required: true,
+    },
   },
-  data() {
-    return {
-      navItems: [
-        { id: 'thumbnail', name: 'Thumbnail Clipper' },
-        { id: 'metadata', name: 'Video Metadata' },
-        { id: 'hls-download', name: 'HLS Download' },
-      ],
-    };
+  computed: {
+    groupedTools() {
+      return TOOL_CATEGORY_ORDER.map((categoryKey) => {
+        const items = this.tools.filter((item) => item.category === categoryKey);
+        return {
+          key: categoryKey,
+          label: TOOL_CATEGORY_LABELS[categoryKey] || categoryKey,
+          items,
+        };
+      }).filter((group) => group.items.length > 0);
+    },
   },
 };
 </script>
 
 <style scoped>
 .sidebar {
-  width: 180px;
+  width: 200px;
   height: 100vh;
   background-color: var(--bg-secondary);
   border-right: 1px solid var(--border);
@@ -86,12 +112,29 @@ export default {
 
 .sidebar-nav {
   flex: 1;
-  padding: var(--space-sm) 0;
+  padding: var(--space-xs) 0 var(--space-sm);
   display: flex;
   flex-direction: column;
+  gap: var(--space-xs);
+  overflow-y: auto;
+}
+
+.nav-group {
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-xs);
+}
+
+.group-title {
+  margin: 0;
+  padding: 0 var(--space-md) var(--space-xs);
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
 }
 
 .nav-item {
+  width: 100%;
   display: flex;
   align-items: center;
   gap: var(--space-sm);
@@ -103,7 +146,7 @@ export default {
   cursor: pointer;
   text-align: left;
   font-family: var(--font-family);
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   border-radius: 0;
@@ -151,20 +194,31 @@ export default {
     border-right: none;
     border-bottom: 1px solid var(--border);
   }
-  
+
   .sidebar-nav {
+    overflow-x: auto;
     flex-direction: row;
+    gap: var(--space-sm);
     padding: var(--space-xs);
-    gap: var(--space-xs);
   }
-  
+
+  .nav-group {
+    min-width: max-content;
+    border-top: none;
+    border-left: 1px solid var(--border);
+    padding-left: var(--space-xs);
+  }
+
+  .group-title {
+    padding-left: var(--space-xs);
+  }
+
   .nav-item {
     white-space: nowrap;
-    padding: var(--space-sm);
     border-bottom: none;
     border-right: 1px solid transparent;
   }
-  
+
   .nav-item.active {
     border-bottom: none;
     border-right: 2px solid var(--accent);

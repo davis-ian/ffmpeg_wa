@@ -1,10 +1,12 @@
 <template>
   <div class="app-layout">
-    <Sidebar :current-tool="currentTool" @change-tool="currentTool = $event" />
+    <Sidebar
+      :current-tool="currentTool"
+      :tools="toolDefinitions"
+      @change-tool="currentTool = $event"
+    />
     <main class="main-content">
-      <FfmpegDemo v-if="currentTool === 'thumbnail'" />
-      <MetadataViewer v-else-if="currentTool === 'metadata'" />
-      <HlsDownloader v-else-if="currentTool === 'hls-download'" />
+      <component :is="activeToolComponent" v-if="activeToolComponent" />
     </main>
   </div>
 </template>
@@ -14,19 +16,37 @@ import Sidebar from './components/Sidebar.vue';
 import FfmpegDemo from './components/FfmpegDemo.vue';
 import MetadataViewer from './components/MetadataViewer.vue';
 import HlsDownloader from './components/HlsDownloader.vue';
+import VideoConverter from './components/VideoConverter.vue';
+import ImageConverter from './components/ImageConverter.vue';
+import AudioTrimmer from './components/AudioTrimmer.vue';
+import { TOOL_DEFINITIONS } from './tools/toolRegistry.js';
+
+const COMPONENT_MAP = {
+  FfmpegDemo,
+  MetadataViewer,
+  HlsDownloader,
+  VideoConverter,
+  ImageConverter,
+  AudioTrimmer,
+};
 
 export default {
   name: 'App',
   components: {
     Sidebar,
-    FfmpegDemo,
-    MetadataViewer,
-    HlsDownloader,
   },
   data() {
     return {
+      toolDefinitions: TOOL_DEFINITIONS,
       currentTool: 'thumbnail',
     };
+  },
+  computed: {
+    activeToolComponent() {
+      const tool = this.toolDefinitions.find((entry) => entry.id === this.currentTool);
+      if (!tool) return null;
+      return COMPONENT_MAP[tool.component] || null;
+    },
   },
 };
 </script>
@@ -49,7 +69,7 @@ export default {
 
 .main-content {
   flex: 1;
-  margin-left: 180px;
+  margin-left: 200px;
   background-color: var(--bg-primary);
   min-height: 100vh;
 }
@@ -58,7 +78,7 @@ export default {
   .app-layout {
     flex-direction: column;
   }
-  
+
   .main-content {
     margin-left: 0;
   }

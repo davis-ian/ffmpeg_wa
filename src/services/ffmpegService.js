@@ -3,7 +3,8 @@ import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { toBlobURL, fetchFile } from "@ffmpeg/util";
 
 const FFMPEG_CORE_VERSION = "0.12.6";
-const FFMPEG_CORE_URL = `https://unpkg.com/@ffmpeg/core-mt@${FFMPEG_CORE_VERSION}/dist/esm`;
+const FFMPEG_CORE_MT_URL = `https://unpkg.com/@ffmpeg/core-mt@${FFMPEG_CORE_VERSION}/dist/esm`;
+const FFMPEG_CORE_ST_URL = `https://unpkg.com/@ffmpeg/core@${FFMPEG_CORE_VERSION}/dist/esm`;
 // const MAX_FFMPEG_THREADS = 16;
 const MAX_FFMPEG_THREADS = 4;
 
@@ -22,6 +23,7 @@ class FFmpegService {
     this.capturedLogs = [];
     this.workerThreadsOverride = null;
     this.workerThreads = this._resolveWorkerThreads();
+    this.coreVariant = null;
   }
 
   _isCrossOriginIsolated() {
@@ -44,6 +46,63 @@ class FFmpegService {
       return this.workerThreadsOverride;
     }
     return this._detectWorkerThreads();
+  }
+
+  _resolveCoreVariant() {
+    if (!this._isCrossOriginIsolated()) {
+      return "st";
+    }
+    return this.workerThreads > 1 ? "mt" : "st";
+  }
+
+  _resolveActiveThreadCount() {
+    return this.coreVariant === "mt" ? this.workerThreads : 1;
+  }
+
+  _replaceInputArg(args, inputName, replacementPath) {
+    let replaced = 0;
+    const mapped = args.map((arg) => {
+      if (arg === inputName) {
+        replaced += 1;
+        return replacementPath;
+      }
+      return arg;
+    });
+    return { args: mapped, replaced };
+  }
+
+  async _mountInputFile(file) {
+    const ffmpeg = this.getInstance();
+    if (
+      typeof ffmpeg.createDir !== "function" ||
+      typeof ffmpeg.mount !== "function" ||
+      typeof ffmpeg.unmount !== "function"
+    ) {
+      return null;
+    }
+
+    const safeFileName = file.name || `input_${Date.now()}.mp4`;
+    const mountPoint = `/in_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    await ffmpeg.createDir(mountPoint);
+    await ffmpeg.mount("WORKERFS", { files: [file] }, mountPoint);
+    return {
+      mountPoint,
+      inputPath: `${mountPoint}/${safeFileName}`,
+    };
+  }
+
+  async _cleanupMountedInput(mountPoint) {
+    const ffmpeg = this.getInstance();
+    try {
+      await ffmpeg.unmount(mountPoint);
+    } catch {
+      // no-op
+    }
+    try {
+      await ffmpeg.deleteDir(mountPoint);
+    } catch {
+      // no-op
+    }
   }
 
   setWorkerThreads(count) {
@@ -135,6 +194,7 @@ class FFmpegService {
       crossOriginIsolated: this._isCrossOriginIsolated(),
       sharedArrayBuffer: typeof SharedArrayBuffer !== "undefined",
       workerThreads: this.workerThreads,
+      coreVariant: this._resolveCoreVariant(),
       timestamp: new Date().toISOString(),
     });
 
@@ -153,38 +213,85 @@ class FFmpegService {
 
     try {
       const ffmpeg = new FFmpeg();
+      const preferredVariant = this._resolveCoreVariant();
 
       // Set up event handlers
       ffmpeg.on("log", this._handleLog.bind(this));
       ffmpeg.on("progress", this._handleProgress.bind(this));
 
-      // Load WASM modules
-      // Load the multi-threaded FFmpeg core + workers in parallel for max throughput
-      const [coreURL, wasmURL, workerURL] = await Promise.all([
-        toBlobURL(`${FFMPEG_CORE_URL}/ffmpeg-core.js`, "text/javascript"),
-        toBlobURL(`${FFMPEG_CORE_URL}/ffmpeg-core.wasm`, "application/wasm"),
-        toBlobURL(
-          `${FFMPEG_CORE_URL}/ffmpeg-core.worker.js`,
+      const loadVariant = async (variant) => {
+        const coreBaseURL =
+          variant === "mt" ? FFMPEG_CORE_MT_URL : FFMPEG_CORE_ST_URL;
+        const coreURLPromise = toBlobURL(
+          `${coreBaseURL}/ffmpeg-core.js`,
           "text/javascript",
-        ),
-      ]);
+        );
+        const wasmURLPromise = toBlobURL(
+          `${coreBaseURL}/ffmpeg-core.wasm`,
+          "application/wasm",
+        );
+
+        if (variant === "mt") {
+          const [coreURL, wasmURL, workerURL] = await Promise.all([
+            coreURLPromise,
+            wasmURLPromise,
+            toBlobURL(
+              `${coreBaseURL}/ffmpeg-core.worker.js`,
+              "text/javascript",
+            ),
+          ]);
+          return { coreURL, wasmURL, workerURL, variant };
+        }
+
+        const [coreURL, wasmURL] = await Promise.all([
+          coreURLPromise,
+          wasmURLPromise,
+        ]);
+        return { coreURL, wasmURL, workerURL: undefined, variant };
+      };
+
+      let bundle = await loadVariant(preferredVariant);
 
       console.log("[FFmpegService] submitting load", {
-        coreURL,
-        wasmURL,
-        workerURL,
+        coreURL: bundle.coreURL,
+        wasmURL: bundle.wasmURL,
+        workerURL: bundle.workerURL,
         workerThreads: this.workerThreads,
+        activeThreads: bundle.variant === "mt" ? this.workerThreads : 1,
+        coreVariant: bundle.variant,
         crossOriginIsolated: this._isCrossOriginIsolated(),
       });
 
-      await ffmpeg.load({ coreURL, wasmURL, workerURL });
+      try {
+        await ffmpeg.load({
+          coreURL: bundle.coreURL,
+          wasmURL: bundle.wasmURL,
+          workerURL: bundle.workerURL,
+        });
+      } catch (initialLoadError) {
+        if (bundle.variant !== "mt") {
+          throw initialLoadError;
+        }
+        console.warn(
+          "[FFmpegService] MT core load failed, retrying with single-thread core",
+          initialLoadError,
+        );
+        bundle = await loadVariant("st");
+        await ffmpeg.load({
+          coreURL: bundle.coreURL,
+          wasmURL: bundle.wasmURL,
+        });
+      }
 
       console.log("[FFmpegService] load resolved", {
         workerThreads: this.workerThreads,
+        activeThreads: bundle.variant === "mt" ? this.workerThreads : 1,
+        coreVariant: bundle.variant,
         crossOriginIsolated: this._isCrossOriginIsolated(),
       });
 
       this.ffmpeg = ffmpeg;
+      this.coreVariant = bundle.variant;
       this.isLoaded = true;
       this.isLoading = false;
 
@@ -193,6 +300,7 @@ class FFmpegService {
     } catch (error) {
       this.isLoading = false;
       this.loadError = error.message;
+      this.coreVariant = null;
       console.error("[FFmpegService] Failed to load:", error, {
         crossOriginIsolated: this._isCrossOriginIsolated(),
         workerThreads: this.workerThreads,
@@ -269,6 +377,7 @@ class FFmpegService {
       this.ffmpeg = null;
       this.isLoaded = false;
       this.isLoading = false;
+      this.coreVariant = null;
       this.clearLogs();
       this.logCallbacks.clear();
       this.progressCallbacks.clear();
@@ -284,24 +393,74 @@ class FFmpegService {
    * @returns {Promise<Uint8Array>} Output file data
    */
   async processVideo(inputFile, inputName, ffmpegArgs, outputName) {
-    // Write input file
-    await this.writeFile(inputName, inputFile);
+    let outputData = null;
+    let mountedInput = null;
+    let argsToExec = ffmpegArgs;
+    let wroteInput = false;
 
-    // Execute command
-    const exitCode = await this.exec(ffmpegArgs);
+    try {
+      if (inputFile instanceof File) {
+        try {
+          mountedInput = await this._mountInputFile(inputFile);
+          if (mountedInput) {
+            const { args, replaced } = this._replaceInputArg(
+              ffmpegArgs,
+              inputName,
+              mountedInput.inputPath,
+            );
+            if (replaced > 0) {
+              argsToExec = args;
+            } else {
+              mountedInput = null;
+              await this.writeFile(inputName, inputFile);
+              wroteInput = true;
+            }
+          } else {
+            await this.writeFile(inputName, inputFile);
+            wroteInput = true;
+          }
+        } catch (mountError) {
+          console.warn(
+            "[FFmpegService] WORKERFS mount failed, falling back to writeFile",
+            mountError,
+          );
+          mountedInput = null;
+          await this.writeFile(inputName, inputFile);
+          wroteInput = true;
+        }
+      } else {
+        await this.writeFile(inputName, inputFile);
+        wroteInput = true;
+      }
 
-    if (exitCode !== 0) {
-      throw new Error(`FFmpeg process failed with exit code ${exitCode}`);
+      // Execute command
+      const exitCode = await this.exec(argsToExec);
+
+      if (exitCode !== 0) {
+        throw new Error(`FFmpeg process failed with exit code ${exitCode}`);
+      }
+
+      // Read output file
+      outputData = await this.readFile(outputName);
+      return outputData;
+    } finally {
+      // Best-effort cleanup to avoid stale files and memory growth after failed runs.
+      if (wroteInput) {
+        try {
+          await this.deleteFile(inputName);
+        } catch {
+          // no-op
+        }
+      }
+      if (mountedInput?.mountPoint) {
+        await this._cleanupMountedInput(mountedInput.mountPoint);
+      }
+      try {
+        await this.deleteFile(outputName);
+      } catch {
+        // no-op
+      }
     }
-
-    // Read output file
-    const outputData = await this.readFile(outputName);
-
-    // Cleanup
-    await this.deleteFile(inputName);
-    await this.deleteFile(outputName);
-
-    return outputData;
   }
 
   /**
@@ -451,6 +610,8 @@ class FFmpegService {
       fileSize: videoFile?.size,
       seekTime,
       workerThreads: this.workerThreads,
+      activeThreads: this._resolveActiveThreadCount(),
+      coreVariant: this.coreVariant,
       crossOriginIsolated: this._isCrossOriginIsolated(),
     });
 
@@ -458,7 +619,7 @@ class FFmpegService {
 
     const execArgs = [
       "-threads",
-      `${this.workerThreads}`,
+      `${this._resolveActiveThreadCount()}`,
       "-ss",
       `${seekTime}`,
       "-i",
