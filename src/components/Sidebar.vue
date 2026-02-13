@@ -2,9 +2,23 @@
   <aside class="sidebar">
     <div class="sidebar-header">
       <h2 class="app-title">ClipForge</h2>
+      <button
+        class="mobile-menu-toggle"
+        type="button"
+        :aria-expanded="String(isMobileOpen)"
+        aria-controls="sidebarNav"
+        @click="toggleMobileMenu"
+      >
+        {{ isMobileOpen ? "Close" : "Menu" }}
+      </button>
     </div>
 
-    <nav class="sidebar-nav">
+    <div class="mobile-current-tool">
+      <span class="mobile-current-label">Tool</span>
+      <span class="mobile-current-name">{{ currentToolLabel }}</span>
+    </div>
+
+    <nav id="sidebarNav" class="sidebar-nav" :class="{ 'is-mobile-open': isMobileOpen }">
       <section v-for="group in groupedTools" :key="group.key" class="nav-group">
         <h3 class="group-title">{{ group.label }}</h3>
 
@@ -13,7 +27,7 @@
           :key="item.id"
           class="nav-item"
           :class="{ active: currentTool === item.id }"
-          @click="$emit('change-tool', item.id)"
+          @click="selectTool(item.id)"
         >
           <svg
             class="nav-icon"
@@ -78,6 +92,31 @@
             />
             <path v-if="item.id === 'converter'" d="M10 9l-3 3 3 3" />
             <path v-if="item.id === 'converter'" d="M14 9l3 3-3 3" />
+
+            <rect
+              v-if="item.id === 'video-trimmer'"
+              x="3"
+              y="4"
+              width="18"
+              height="14"
+              rx="2"
+            />
+            <line
+              v-if="item.id === 'video-trimmer'"
+              x1="8"
+              y1="8"
+              x2="16"
+              y2="16"
+            />
+            <line
+              v-if="item.id === 'video-trimmer'"
+              x1="16"
+              y1="8"
+              x2="8"
+              y2="16"
+            />
+            <circle v-if="item.id === 'video-trimmer'" cx="8" cy="8" r="1.5" />
+            <circle v-if="item.id === 'video-trimmer'" cx="16" cy="8" r="1.5" />
 
             <path v-if="item.id === 'audio-trimmer'" d="M9 18V5l12-2v13" />
             <circle v-if="item.id === 'audio-trimmer'" cx="6" cy="18" r="3" />
@@ -224,6 +263,11 @@
       <p class="version">v1.0</p>
     </div>
   </aside>
+  <div
+    v-if="isMobileOpen"
+    class="mobile-backdrop"
+    @click="closeMobileMenu"
+  ></div>
 </template>
 
 <script>
@@ -257,6 +301,27 @@ export default {
         };
       }).filter((group) => group.items.length > 0);
     },
+    currentToolLabel() {
+      const activeTool = this.tools.find((item) => item.id === this.currentTool);
+      return activeTool ? activeTool.label : "Select Tool";
+    },
+  },
+  data() {
+    return {
+      isMobileOpen: false,
+    };
+  },
+  methods: {
+    selectTool(toolId) {
+      this.$emit("change-tool", toolId);
+      this.closeMobileMenu();
+    },
+    toggleMobileMenu() {
+      this.isMobileOpen = !this.isMobileOpen;
+    },
+    closeMobileMenu() {
+      this.isMobileOpen = false;
+    },
   },
 };
 </script>
@@ -278,6 +343,9 @@ export default {
 .sidebar-header {
   padding: var(--space-md);
   border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .app-title {
@@ -288,6 +356,21 @@ export default {
   margin: 0;
   letter-spacing: 1px;
   text-transform: uppercase;
+}
+
+.mobile-menu-toggle {
+  display: none;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 6px 10px;
+  font-size: 0.72rem;
+}
+
+.mobile-current-tool {
+  display: none;
 }
 
 .sidebar-nav {
@@ -366,6 +449,10 @@ export default {
   font-family: monospace;
 }
 
+.mobile-backdrop {
+  display: none;
+}
+
 @media (max-width: 768px) {
   .sidebar {
     width: 100%;
@@ -373,35 +460,82 @@ export default {
     position: relative;
     border-right: none;
     border-bottom: 1px solid var(--border);
+    z-index: 120;
   }
 
   .sidebar-nav {
-    overflow-x: auto;
-    flex-direction: row;
-    gap: var(--space-sm);
-    padding: var(--space-xs);
+    display: none;
+    overflow-y: auto;
+    max-height: 68vh;
+    padding: var(--space-xs) 0 var(--space-sm);
+    border-top: 1px solid var(--border);
+    background: var(--bg-secondary);
+  }
+
+  .sidebar-nav.is-mobile-open {
+    display: flex;
+  }
+
+  .mobile-menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .mobile-current-tool {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-xs);
+    padding: 0 var(--space-md) var(--space-sm);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .mobile-current-label {
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    font-size: 0.62rem;
+  }
+
+  .mobile-current-name {
+    color: var(--text-pop);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-size: 0.76rem;
   }
 
   .nav-group {
-    min-width: max-content;
-    border-top: none;
-    border-left: 1px solid var(--border);
-    padding-left: var(--space-xs);
+    min-width: 100%;
+    border-top: 1px solid var(--border);
+    border-left: none;
+    padding-left: 0;
   }
 
   .group-title {
-    padding-left: var(--space-xs);
+    padding-left: var(--space-md);
   }
 
   .nav-item {
-    white-space: nowrap;
-    border-bottom: none;
-    border-right: 1px solid transparent;
+    white-space: normal;
+    border-bottom: 1px solid transparent;
+    border-right: none;
+    padding: var(--space-sm) var(--space-md);
   }
 
   .nav-item.active {
-    border-bottom: none;
-    border-right: 2px solid var(--accent);
+    border-bottom: 1px solid var(--accent);
+  }
+
+  .sidebar-footer {
+    display: none;
+  }
+
+  .mobile-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 110;
+    background: rgba(0, 0, 0, 0.45);
   }
 }
 </style>

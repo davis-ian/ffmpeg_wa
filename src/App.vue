@@ -24,6 +24,7 @@ import AudioTrimmer from "./components/AudioTrimmer.vue";
 import AudioExtractor from "./components/AudioExtractor.vue";
 import FrameSequenceExport from "./components/FrameSequenceExport.vue";
 import MediaJoin from "./components/MediaJoin.vue";
+import VideoTrimmer from "./components/VideoTrimmer.vue";
 // import SilenceCutter from './components/SilenceCutter.vue';
 import ContactSheetGenerator from "./components/ContactSheetGenerator.vue";
 import ContainerRewrap from "./components/ContainerRewrap.vue";
@@ -39,6 +40,7 @@ const COMPONENT_MAP = {
   AudioExtractor,
   FrameSequenceExport,
   MediaJoin,
+  VideoTrimmer,
   // SilenceCutter,
   ContactSheetGenerator,
   ContainerRewrap,

@@ -9,6 +9,7 @@ ClipForge is a browser-first media toolkit for video, audio, and image workflows
 - Video Metadata
 - HLS Download
 - Convert Video
+- Video Trimmer
 - Frame Sequence
 - Media Join
 - Contact Sheet (Beta)

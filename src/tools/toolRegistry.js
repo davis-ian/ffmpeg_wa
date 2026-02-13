@@ -58,6 +58,17 @@ export const TOOL_DEFINITIONS = [
     capabilities: ["remux", "transcode"],
   },
   {
+    id: "video-trimmer",
+    label: "Video Trimmer",
+    category: "video",
+    component: "VideoTrimmer",
+    status: "stable",
+    runtime: "ffmpeg",
+    stability: "stable",
+    cost: "medium",
+    capabilities: ["trim", "copy", "fallback"],
+  },
+  {
     id: "audio-trimmer",
     label: "Audio Trimmer",
     category: "audio",
