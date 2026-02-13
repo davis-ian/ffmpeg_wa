@@ -20,6 +20,9 @@
           <line v-if="item.id === 'metadata'" x1="16" y1="13" x2="8" y2="13"/>
           <line v-if="item.id === 'metadata'" x1="16" y1="17" x2="8" y2="17"/>
           <polyline v-if="item.id === 'metadata'" points="10 9 9 9 8 9"/>
+          <rect v-if="item.id === 'hls-download'" x="3" y="4" width="18" height="16" rx="2"/>
+          <polyline v-if="item.id === 'hls-download'" points="8 11 12 15 16 11"/>
+          <line v-if="item.id === 'hls-download'" x1="12" y1="8" x2="12" y2="15"/>
         </svg>
         <span class="nav-label">{{ item.name }}</span>
       </button>
@@ -45,6 +48,7 @@ export default {
       navItems: [
         { id: 'thumbnail', name: 'Thumbnail Clipper' },
         { id: 'metadata', name: 'Video Metadata' },
+        { id: 'hls-download', name: 'HLS Download' },
       ],
     };
   },

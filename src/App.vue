@@ -4,6 +4,7 @@
     <main class="main-content">
       <FfmpegDemo v-if="currentTool === 'thumbnail'" />
       <MetadataViewer v-else-if="currentTool === 'metadata'" />
+      <HlsDownloader v-else-if="currentTool === 'hls-download'" />
     </main>
   </div>
 </template>
@@ -12,6 +13,7 @@
 import Sidebar from './components/Sidebar.vue';
 import FfmpegDemo from './components/FfmpegDemo.vue';
 import MetadataViewer from './components/MetadataViewer.vue';
+import HlsDownloader from './components/HlsDownloader.vue';
 
 export default {
   name: 'App',
@@ -19,6 +21,7 @@ export default {
     Sidebar,
     FfmpegDemo,
     MetadataViewer,
+    HlsDownloader,
   },
   data() {
     return {
