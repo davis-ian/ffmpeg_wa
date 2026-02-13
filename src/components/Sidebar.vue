@@ -261,6 +261,10 @@
 
     <div class="sidebar-footer">
       <p class="version">v1.0</p>
+      <p class="credit">
+        Created by
+        <a href="https://iandavis.dev/" target="_blank" rel="noopener noreferrer">Ian Davis</a>
+      </p>
     </div>
   </aside>
   <div
@@ -449,6 +453,24 @@ export default {
   font-family: monospace;
 }
 
+.credit {
+  margin: 6px 0 0;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-align: center;
+  letter-spacing: 0.2px;
+}
+
+.credit a {
+  color: var(--text-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.credit a:hover {
+  color: var(--accent);
+}
+
 .mobile-backdrop {
   display: none;
 }
@@ -527,7 +549,8 @@ export default {
   }
 
   .sidebar-footer {
-    display: none;
+    display: block;
+    padding: var(--space-xs) var(--space-md);
   }
 
   .mobile-backdrop {
