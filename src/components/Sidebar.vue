@@ -83,6 +83,23 @@
             />
 
             <rect
+              v-if="item.id === 'hls-inspector'"
+              x="3"
+              y="4"
+              width="14"
+              height="10"
+              rx="2"
+            />
+            <circle v-if="item.id === 'hls-inspector'" cx="10" cy="9" r="3" />
+            <line
+              v-if="item.id === 'hls-inspector'"
+              x1="14"
+              y1="13"
+              x2="20"
+              y2="19"
+            />
+
+            <rect
               v-if="item.id === 'converter'"
               x="3"
               y="5"

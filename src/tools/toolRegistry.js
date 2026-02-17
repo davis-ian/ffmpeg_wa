@@ -25,6 +25,17 @@ export const TOOL_DEFINITIONS = [
     capabilities: ["download", "remux"],
   },
   {
+    id: "hls-inspector",
+    label: "HLS Inspector",
+    category: "video",
+    component: "HlsInspector",
+    status: "beta",
+    runtime: "browser-native",
+    stability: "beta",
+    cost: "light",
+    capabilities: ["inspect", "preview", "hls"],
+  },
+  {
     id: "metadata",
     label: "Video Metadata",
     category: "video",
