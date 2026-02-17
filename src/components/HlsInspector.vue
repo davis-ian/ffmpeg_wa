@@ -260,6 +260,8 @@ export default {
       previewError: "",
       previewPlayer: null,
       previewVideoEl: null,
+      previewRequestToken: 0,
+      isPreviewLoading: false,
     };
   },
   computed: {
@@ -401,23 +403,51 @@ export default {
       if (!segment) {
         return;
       }
+      const isSameSelection = this.selectedSegmentIndex === segment.index;
+      const alreadyPreviewing =
+        this.previewSegment?.index === segment.index &&
+        !this.previewError &&
+        !this.isPreviewLoading;
       this.selectedSegmentIndex = segment.index;
+      if (isSameSelection && alreadyPreviewing) {
+        return;
+      }
       this.loadSegmentPreview(segment);
     },
 
-    loadSegmentPreview(segment) {
+    async loadSegmentPreview(segment) {
       if (!segment) {
         return;
       }
+      const requestToken = this.previewRequestToken + 1;
+      this.previewRequestToken = requestToken;
+      this.isPreviewLoading = true;
       this.previewSegment = segment;
       this.previewError = "";
+      this.destroyPreviewPlayer();
+      this.revokePreviewPlaylistUrl();
       const playlistText = buildSingleSegmentPlaylist(segment);
       const blob = new Blob([playlistText], {
         type: "application/vnd.apple.mpegurl",
       });
-      this.revokePreviewPlaylistUrl();
-      this.previewPlaylistUrl = URL.createObjectURL(blob);
-      nextTick(() => this.initializePreviewPlayback());
+      const playlistUrl = URL.createObjectURL(blob);
+      this.previewPlaylistUrl = playlistUrl;
+
+      try {
+        await nextTick();
+        if (requestToken !== this.previewRequestToken) {
+          URL.revokeObjectURL(playlistUrl);
+          if (this.previewPlaylistUrl === playlistUrl) {
+            this.previewPlaylistUrl = "";
+          }
+          return;
+        }
+        this.initializePreviewPlayback();
+      } finally {
+        if (requestToken === this.previewRequestToken) {
+          this.isPreviewLoading = false;
+        }
+      }
     },
 
     initializePreviewPlayback() {
@@ -498,10 +528,12 @@ export default {
     },
 
     clearPreviewState() {
+      this.previewRequestToken += 1;
+      this.isPreviewLoading = false;
       this.previewSegment = null;
       this.previewError = "";
-      this.revokePreviewPlaylistUrl();
       this.destroyPreviewPlayer();
+      this.revokePreviewPlaylistUrl();
     },
 
     formatDuration(seconds) {
