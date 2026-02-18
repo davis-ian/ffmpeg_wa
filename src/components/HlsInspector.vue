@@ -199,7 +199,7 @@
           </header>
           <div class="preview-video">
             <video
-              :ref="setPreviewVideoRef"
+              ref="previewVideo"
               muted
               playsinline
               preload="auto"
@@ -259,9 +259,10 @@ export default {
       previewPlaylistUrl: "",
       previewError: "",
       previewPlayer: null,
-      previewVideoEl: null,
       previewRequestToken: 0,
       isPreviewLoading: false,
+      liveRefreshTimer: null,
+      isAutoRefreshing: false,
     };
   },
   computed: {
@@ -343,15 +344,18 @@ export default {
       }
     },
 
-    async refreshActivePlaylist() {
+    async refreshActivePlaylist(options = {}) {
+      const { auto = false } = options;
       const targetUrl = this.manifestType === "master" && this.selectedVariantUrl
         ? this.selectedVariantUrl
         : this.manifestUrl;
       if (!targetUrl) {
         return;
       }
-      this.errorMessage = "";
-      this.isLoadingSegments = true;
+      if (!auto) {
+        this.errorMessage = "";
+        this.isLoadingSegments = true;
+      }
       try {
         const { text, sourceUrl } = await fetchManifestText(targetUrl);
         if (targetUrl === this.manifestUrl) {
@@ -362,9 +366,13 @@ export default {
         await this.loadMediaPlaylist(text, sourceUrl);
       } catch (error) {
         console.error("[HlsInspector] refreshActivePlaylist error", error);
-        this.errorMessage = error?.message || "Failed to refresh playlist.";
+        if (!auto) {
+          this.errorMessage = error?.message || "Failed to refresh playlist.";
+        }
       } finally {
-        this.isLoadingSegments = false;
+        if (!auto) {
+          this.isLoadingSegments = false;
+        }
       }
     },
 
@@ -374,6 +382,7 @@ export default {
       this.manifestMetadata = metadata;
       this.segments = segments;
       this.activePlaylistFetchedAt = new Date();
+      this.configureLiveRefreshLoop();
       this.segmentFilter = "";
       this.selectedSegmentIndex = null;
       this.clearPreviewState();
@@ -451,7 +460,7 @@ export default {
     },
 
     initializePreviewPlayback() {
-      const videoEl = this.previewVideoEl;
+      const videoEl = this.$refs?.previewVideo || null;
       if (!videoEl || !this.previewPlaylistUrl) {
         return;
       }
@@ -492,7 +501,7 @@ export default {
       if (this.previewPlayer?.hls) {
         this.previewPlayer.hls.destroy();
       }
-      const videoEl = this.previewPlayer?.video || this.previewVideoEl;
+      const videoEl = this.previewPlayer?.video || this.$refs?.previewVideo;
       if (videoEl) {
         videoEl.removeAttribute("src");
         try {
@@ -511,15 +520,6 @@ export default {
       }
     },
 
-    setPreviewVideoRef(el) {
-      this.previewVideoEl = el || null;
-      if (el) {
-        this.initializePreviewPlayback();
-      } else {
-        this.destroyPreviewPlayer();
-      }
-    },
-
     scrollChunksToBottom() {
       const scroller = this.$refs?.chunkListScroller;
       if (scroller) {
@@ -534,6 +534,66 @@ export default {
       this.previewError = "";
       this.destroyPreviewPlayer();
       this.revokePreviewPlaylistUrl();
+    },
+
+    configureLiveRefreshLoop() {
+      this.stopLiveRefreshLoop();
+      if (!this.isLivePlaylist()) {
+        return;
+      }
+      const intervalMs = this.getLiveRefreshIntervalMs();
+      this.liveRefreshTimer = window.setInterval(() => {
+        if (!this.isLivePlaylist()) {
+          this.stopLiveRefreshLoop();
+          return;
+        }
+        if (typeof document !== "undefined" && document.hidden) {
+          return;
+        }
+        if (this.isLoadingSegments || this.isAutoRefreshing) {
+          return;
+        }
+        this.isAutoRefreshing = true;
+        Promise.resolve(this.refreshActivePlaylist({ auto: true }))
+          .catch((error) => {
+            console.warn("[HlsInspector] auto refresh failed", error);
+          })
+          .finally(() => {
+            this.isAutoRefreshing = false;
+          });
+      }, intervalMs);
+    },
+
+    stopLiveRefreshLoop() {
+      if (this.liveRefreshTimer) {
+        clearInterval(this.liveRefreshTimer);
+        this.liveRefreshTimer = null;
+      }
+      this.isAutoRefreshing = false;
+    },
+
+    isLivePlaylist() {
+      const metadata = this.manifestMetadata;
+      if (!metadata) {
+        return false;
+      }
+      if (metadata.hasEndList) {
+        return false;
+      }
+      const playlistType = metadata.playlistType?.toUpperCase();
+      if (playlistType === "VOD") {
+        return false;
+      }
+      return true;
+    },
+
+    getLiveRefreshIntervalMs() {
+      const targetDuration = this.manifestMetadata?.targetDuration;
+      if (Number.isFinite(targetDuration) && targetDuration > 0) {
+        const ms = targetDuration * 1500;
+        return Math.min(15000, Math.max(3000, Math.round(ms)));
+      }
+      return 5000;
     },
 
     formatDuration(seconds) {
@@ -582,6 +642,7 @@ export default {
     },
 
     resetInspectorState() {
+      this.stopLiveRefreshLoop();
       this.variants = [];
       this.selectedVariantUrl = "";
       this.activePlaylistText = "";
@@ -594,6 +655,7 @@ export default {
   },
   beforeUnmount() {
     this.clearPreviewState();
+    this.stopLiveRefreshLoop();
   },
 };
 </script>

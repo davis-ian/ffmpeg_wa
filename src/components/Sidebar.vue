@@ -309,6 +309,7 @@ export default {
       required: true,
     },
   },
+  emits: ["change-tool"],
   computed: {
     groupedTools() {
       return TOOL_CATEGORY_ORDER.map((categoryKey) => {
