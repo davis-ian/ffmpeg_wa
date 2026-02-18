@@ -14,17 +14,6 @@
 /** @type {ToolDefinition[]} */
 export const TOOL_DEFINITIONS = [
   {
-    id: "hls-download",
-    label: "HLS Download",
-    category: "video",
-    component: "HlsDownloader",
-    status: "stable",
-    runtime: "ffmpeg",
-    stability: "stable",
-    cost: "medium",
-    capabilities: ["download", "remux"],
-  },
-  {
     id: "hls-inspector",
     label: "HLS Inspector",
     category: "video",
@@ -34,6 +23,17 @@ export const TOOL_DEFINITIONS = [
     stability: "beta",
     cost: "light",
     capabilities: ["inspect", "preview", "hls"],
+  },
+  {
+    id: "hls-download",
+    label: "HLS Download",
+    category: "video",
+    component: "HlsDownloader",
+    status: "stable",
+    runtime: "ffmpeg",
+    stability: "stable",
+    cost: "medium",
+    capabilities: ["download", "remux"],
   },
   {
     id: "metadata",

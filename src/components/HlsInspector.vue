@@ -45,6 +45,81 @@
       <p class="hint">CORS access is required. DRM-encrypted streams will not render in preview tiles.</p>
     </section>
 
+    <section class="panel" v-if="segments.length">
+      <div class="panel-heading">
+        <h2>Chunk Timeline</h2>
+        <div class="panel-actions">
+          <span class="status-pill" v-if="activePlaylistFetchedAt">Refreshed {{ formatRelativeTime(activePlaylistFetchedAt) || "—" }}</span>
+          <input
+            v-model.trim="segmentFilter"
+            class="filter-input"
+            type="search"
+            placeholder="Filter by URI or EXTINF title"
+          />
+        </div>
+      </div>
+      <div class="chunk-view">
+        <div class="chunk-list">
+          <div class="chunk-list-header">
+            <span>#</span>
+            <span>Start</span>
+            <span>Duration</span>
+            <span>Program Time</span>
+            <span>URI</span>
+          </div>
+          <div class="chunk-list-scroll" ref="chunkListScroller">
+            <button
+              v-for="segment in filteredSegments"
+              :key="segment.index"
+              type="button"
+              class="chunk-row"
+              :class="{ selected: selectedSegmentIndex === segment.index }"
+              @click="handleSegmentClick(segment)"
+            >
+              <span class="chunk-index">#{{ segment.index }}</span>
+              <span>{{ formatStart(segment.startTime) }}</span>
+              <span>{{ formatDuration(segment.duration) }}</span>
+              <span>{{ displayTimestamp(segment.programDateTime) || "—" }}</span>
+              <span class="uri">{{ segment.uri }}</span>
+            </button>
+          </div>
+        </div>
+        <div class="chunk-preview">
+          <header class="chunk-preview-header">
+            <div>
+              <h3>Preview Player</h3>
+              <p class="hint">Click a chunk to load it below.</p>
+            </div>
+            <a
+              v-if="previewSegment"
+              :href="previewSegment.absoluteUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Open source
+            </a>
+          </header>
+          <div class="preview-video">
+            <video
+              ref="previewVideo"
+              muted
+              playsinline
+              preload="auto"
+              controls
+            ></video>
+          </div>
+          <div class="chunk-preview-meta" v-if="previewSegment">
+            <p><strong>Index</strong> #{{ previewSegment.index }}</p>
+            <p><strong>Duration</strong> {{ formatDuration(previewSegment.duration) }}</p>
+            <p><strong>Program Time</strong> {{ displayTimestamp(previewSegment.programDateTime) || "—" }}</p>
+            <p class="mono">{{ previewSegment.absoluteUrl }}</p>
+          </div>
+          <p class="hint" v-else>Waiting for a chunk selection.</p>
+          <p class="error" v-if="previewError">{{ previewError }}</p>
+        </div>
+      </div>
+    </section>
+
     <section class="panel" v-if="rootManifestText">
       <div class="panel-heading">
         <h2>Root Manifest</h2>
@@ -143,80 +218,6 @@
       </p>
     </section>
 
-    <section class="panel" v-if="segments.length">
-      <div class="panel-heading">
-        <h2>Chunk Timeline</h2>
-        <div class="panel-actions">
-          <span class="status-pill" v-if="activePlaylistFetchedAt">Refreshed {{ formatRelativeTime(activePlaylistFetchedAt) || "—" }}</span>
-          <input
-            v-model.trim="segmentFilter"
-            class="filter-input"
-            type="search"
-            placeholder="Filter by URI or EXTINF title"
-          />
-        </div>
-      </div>
-      <div class="chunk-view">
-        <div class="chunk-list">
-          <div class="chunk-list-header">
-            <span>#</span>
-            <span>Start</span>
-            <span>Duration</span>
-            <span>Program Time</span>
-            <span>URI</span>
-          </div>
-          <div class="chunk-list-scroll" ref="chunkListScroller">
-            <button
-              v-for="segment in filteredSegments"
-              :key="segment.index"
-              type="button"
-              class="chunk-row"
-              :class="{ selected: selectedSegmentIndex === segment.index }"
-              @click="handleSegmentClick(segment)"
-            >
-              <span class="chunk-index">#{{ segment.index }}</span>
-              <span>{{ formatStart(segment.startTime) }}</span>
-              <span>{{ formatDuration(segment.duration) }}</span>
-              <span>{{ displayTimestamp(segment.programDateTime) || "—" }}</span>
-              <span class="uri">{{ segment.uri }}</span>
-            </button>
-          </div>
-        </div>
-        <div class="chunk-preview">
-          <header class="chunk-preview-header">
-            <div>
-              <h3>Preview Player</h3>
-              <p class="hint">Click a chunk to load it below.</p>
-            </div>
-            <a
-              v-if="previewSegment"
-              :href="previewSegment.absoluteUrl"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Open source
-            </a>
-          </header>
-          <div class="preview-video">
-            <video
-              ref="previewVideo"
-              muted
-              playsinline
-              preload="auto"
-              controls
-            ></video>
-          </div>
-          <div class="chunk-preview-meta" v-if="previewSegment">
-            <p><strong>Index</strong> #{{ previewSegment.index }}</p>
-            <p><strong>Duration</strong> {{ formatDuration(previewSegment.duration) }}</p>
-            <p><strong>Program Time</strong> {{ displayTimestamp(previewSegment.programDateTime) || "—" }}</p>
-            <p class="mono">{{ previewSegment.absoluteUrl }}</p>
-          </div>
-          <p class="hint" v-else>Waiting for a chunk selection.</p>
-          <p class="error" v-if="previewError">{{ previewError }}</p>
-        </div>
-      </div>
-    </section>
 
     <p class="error" v-if="errorMessage">{{ errorMessage }}</p>
   </div>
@@ -263,6 +264,7 @@ export default {
       isPreviewLoading: false,
       liveRefreshTimer: null,
       isAutoRefreshing: false,
+      pendingAutoAdvanceIndex: null,
     };
   },
   computed: {
@@ -377,34 +379,70 @@ export default {
     },
 
     async loadMediaPlaylist(text, baseUrl) {
+      const previousIndex = this.selectedSegmentIndex;
+      const hadSegments = this.segments.length > 0;
       const { segments, metadata } = parseMediaPlaylist(text, baseUrl);
       this.activePlaylistText = text;
       this.manifestMetadata = metadata;
       this.segments = segments;
       this.activePlaylistFetchedAt = new Date();
       this.configureLiveRefreshLoop();
-      this.segmentFilter = "";
-      this.selectedSegmentIndex = null;
-      this.clearPreviewState();
+
       if (!segments.length) {
         this.errorMessage = "Playlist contains no media segments.";
+        this.clearPreviewState();
+        this.selectedSegmentIndex = null;
+      } else if (Number.isFinite(previousIndex)) {
+        const matchingSegment = segments.find((item) => item.index === previousIndex);
+        if (matchingSegment) {
+          this.selectedSegmentIndex = matchingSegment.index;
+          this.previewSegment = matchingSegment;
+          if (
+            Number.isFinite(this.pendingAutoAdvanceIndex) &&
+            matchingSegment.index >= this.pendingAutoAdvanceIndex
+          ) {
+            this.pendingAutoAdvanceIndex = null;
+          }
+        } else {
+          this.selectedSegmentIndex = null;
+          const preservePending = Number.isFinite(this.pendingAutoAdvanceIndex);
+          this.clearPreviewState({ preservePending });
+        }
+      } else if (!hadSegments) {
+        this.selectedSegmentIndex = null;
+        this.clearPreviewState();
       }
+
+      if (Number.isFinite(this.pendingAutoAdvanceIndex)) {
+        const pendingSegment = segments.find((item) => item.index === this.pendingAutoAdvanceIndex);
+        if (pendingSegment) {
+          this.pendingAutoAdvanceIndex = null;
+          this.handleSegmentClick(pendingSegment);
+        }
+      }
+
+      const shouldAutoSelectLatest =
+        segments.length > 0 &&
+        !Number.isFinite(this.selectedSegmentIndex) &&
+        !Number.isFinite(this.pendingAutoAdvanceIndex) &&
+        !this.isAutoRefreshing;
+      if (shouldAutoSelectLatest) {
+        const latestSegment = segments[segments.length - 1];
+        this.handleSegmentClick(latestSegment);
+      }
+
       await nextTick();
       this.scrollChunksToBottom();
     },
 
-    primeVideoFrame(videoEl) {
+    startPreviewPlayback(videoEl) {
       if (!videoEl) return;
-      const playPromise = videoEl.play();
-      if (playPromise?.then) {
-        playPromise
-          .then(() => {
-            videoEl.pause();
-            videoEl.currentTime = 0;
-          })
-          .catch(() => {
-            // ignored
-          });
+      videoEl.currentTime = 0;
+      const playPromise = videoEl.play?.();
+      if (playPromise?.catch) {
+        playPromise.catch((error) => {
+          console.warn("[HlsInspector] preview autoplay failed", error);
+        });
       }
     },
 
@@ -432,6 +470,8 @@ export default {
       this.previewRequestToken = requestToken;
       this.isPreviewLoading = true;
       this.previewSegment = segment;
+      this.selectedSegmentIndex = segment.index;
+      this.pendingAutoAdvanceIndex = null;
       this.previewError = "";
       this.destroyPreviewPlayer();
       this.revokePreviewPlaylistUrl();
@@ -467,6 +507,7 @@ export default {
       this.destroyPreviewPlayer();
       videoEl.muted = true;
       videoEl.playsInline = true;
+      this.setupVideoListeners(videoEl);
 
       if (Hls.isSupported()) {
         const hls = new Hls({ enableWorker: true, autoStartLoad: false });
@@ -476,7 +517,7 @@ export default {
           hls.startLoad(0);
         });
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          this.primeVideoFrame(videoEl);
+          this.startPreviewPlayback(videoEl);
         });
         hls.on(Hls.Events.ERROR, (_event, data) => {
           if (data?.fatal) {
@@ -489,7 +530,7 @@ export default {
 
       if (videoEl.canPlayType("application/vnd.apple.mpegurl")) {
         videoEl.src = this.previewPlaylistUrl;
-        videoEl.onloadeddata = () => this.primeVideoFrame(videoEl);
+        videoEl.onloadeddata = () => this.startPreviewPlayback(videoEl);
         this.previewPlayer = { video: videoEl };
         return;
       }
@@ -498,10 +539,12 @@ export default {
     },
 
     destroyPreviewPlayer() {
-      if (this.previewPlayer?.hls) {
-        this.previewPlayer.hls.destroy();
+      const prevPlayer = this.previewPlayer;
+      if (prevPlayer?.hls) {
+        prevPlayer.hls.destroy();
       }
-      const videoEl = this.previewPlayer?.video || this.$refs?.previewVideo;
+      const videoEl = prevPlayer?.video || this.$refs?.previewVideo;
+      this.teardownVideoListeners(videoEl);
       if (videoEl) {
         videoEl.removeAttribute("src");
         try {
@@ -511,6 +554,38 @@ export default {
         }
       }
       this.previewPlayer = null;
+    },
+
+    setupVideoListeners(videoEl) {
+      if (!videoEl) {
+        return;
+      }
+      videoEl.addEventListener("ended", this.handlePreviewEnded);
+    },
+
+    teardownVideoListeners(videoEl) {
+      if (!videoEl) {
+        return;
+      }
+      videoEl.removeEventListener("ended", this.handlePreviewEnded);
+    },
+
+    handlePreviewEnded() {
+      if (!Number.isFinite(this.selectedSegmentIndex)) {
+        return;
+      }
+      const currentIndex = this.selectedSegmentIndex;
+      const segments = this.segments;
+      const currentPosition = segments.findIndex((segment) => segment.index === currentIndex);
+      if (currentPosition < 0) {
+        return;
+      }
+      const nextSegment = segments[currentPosition + 1];
+      if (nextSegment) {
+        this.handleSegmentClick(nextSegment);
+        return;
+      }
+      this.pendingAutoAdvanceIndex = currentIndex + 1;
     },
 
     revokePreviewPlaylistUrl() {
@@ -527,11 +602,16 @@ export default {
       }
     },
 
-    clearPreviewState() {
+    clearPreviewState(options = {}) {
+      const { preservePending = false } = options;
       this.previewRequestToken += 1;
       this.isPreviewLoading = false;
       this.previewSegment = null;
       this.previewError = "";
+      if (!preservePending) {
+        this.pendingAutoAdvanceIndex = null;
+      }
+      this.selectedSegmentIndex = null;
       this.destroyPreviewPlayer();
       this.revokePreviewPlaylistUrl();
     },
@@ -590,10 +670,10 @@ export default {
     getLiveRefreshIntervalMs() {
       const targetDuration = this.manifestMetadata?.targetDuration;
       if (Number.isFinite(targetDuration) && targetDuration > 0) {
-        const ms = targetDuration * 1500;
-        return Math.min(15000, Math.max(3000, Math.round(ms)));
+        const ms = targetDuration * 750;
+        return Math.min(10000, Math.max(1500, Math.round(ms)));
       }
-      return 5000;
+      return 2500;
     },
 
     formatDuration(seconds) {
@@ -650,6 +730,7 @@ export default {
       this.manifestMetadata = null;
       this.segmentFilter = "";
       this.selectedSegmentIndex = null;
+      this.pendingAutoAdvanceIndex = null;
       this.clearPreviewState();
     },
   },
@@ -939,11 +1020,21 @@ dd {
   background: transparent;
   text-align: left;
   cursor: pointer;
+  transition: background var(--transition-fast), box-shadow var(--transition-fast);
 }
 
-.chunk-row:hover,
-.chunk-row.selected {
+.chunk-row:hover {
   background: var(--bg-surface-hover);
+}
+
+.chunk-row.selected {
+  background: rgba(255, 153, 0, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(255, 153, 0, 0.55);
+}
+
+.chunk-row.selected .chunk-index,
+.chunk-row.selected .uri {
+  color: var(--accent);
 }
 
 .chunk-index {

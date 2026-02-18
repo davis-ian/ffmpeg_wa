@@ -57,7 +57,7 @@ export default {
   data() {
     return {
       toolDefinitions: TOOL_DEFINITIONS,
-      currentTool: "hls-download",
+      currentTool: "hls-inspector",
     };
   },
   computed: {
