@@ -1,7 +1,7 @@
 # FFmpeg Runtime Status
 
 ## Purpose
-ClipForge exposes FFmpeg runtime mode globally so users and maintainers can understand execution context quickly.
+Media Toolkit exposes FFmpeg runtime mode globally so users and maintainers can understand execution context quickly.
 
 ## UI Location
 `src/components/RuntimeStatusBar.vue`

@@ -1,6 +1,6 @@
 # ClipForge
 
-ClipForge is a browser-first media toolkit for video, audio, and image workflows powered by Vue + FFmpeg.wasm.
+Media Toolkit is a browser-first media toolkit for video, audio, and image workflows powered by Vue + FFmpeg.wasm.
 
 ## Tool Catalog
 
@@ -53,4 +53,4 @@ npm run build
 - [FFmpeg Service Architecture](docs/FFMPEG_SERVICE.md)
 
 ## Notes
-ClipForge uses a safe-first strategy: lightweight copy/remux/extract operations are preferred by default, with transcode fallback when required.
+Media Toolkit uses a safe-first strategy: lightweight copy/remux/extract operations are preferred by default, with transcode fallback when required.

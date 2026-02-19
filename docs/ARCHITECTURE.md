@@ -1,7 +1,7 @@
-# ClipForge Architecture
+# Media Toolkit Architecture
 
 ## System Overview
-ClipForge is a client-side media toolbox built with Vue + Vite. It combines browser-native processing for lightweight image workflows and ffmpeg.wasm for audio/video operations.
+Media Toolkit is a client-side media toolbox built with Vue + Vite. It combines browser-native processing for lightweight image workflows and ffmpeg.wasm for audio/video operations.
 
 ## Core Building Blocks
 - `src/App.vue`
