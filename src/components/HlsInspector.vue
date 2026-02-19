@@ -148,7 +148,9 @@
               <strong>Program Time</strong>
               {{ displayTimestamp(previewSegment.programDateTime) || "—" }}
             </p>
-            <p class="mono">{{ previewSegment.absoluteUrl }}</p>
+            <p class="mono break-word">
+              {{ previewSegment.absoluteUrl }}
+            </p>
           </div>
           <p class="hint" v-else>Waiting for a chunk selection.</p>
           <p class="error" v-if="previewError">{{ previewError }}</p>
@@ -509,8 +511,12 @@ export default {
           URL.revokeObjectURL(downloadUrl);
         }
       } catch (error) {
-        console.error("[HlsInspector] downloadActivePlaylistAsMp4 error", error);
-        this.errorMessage = error?.message || "Failed to download playlist MP4.";
+        console.error(
+          "[HlsInspector] downloadActivePlaylistAsMp4 error",
+          error,
+        );
+        this.errorMessage =
+          error?.message || "Failed to download playlist MP4.";
       } finally {
         this.isDownloading = false;
         this.isRemuxing = false;
@@ -555,7 +561,9 @@ export default {
     async fetchBinary(url) {
       const response = await fetch(url, { mode: "cors" });
       if (!response.ok) {
-        throw new Error(`Segment request failed (${response.status}) for ${url}`);
+        throw new Error(
+          `Segment request failed (${response.status}) for ${url}`,
+        );
       }
       const buffer = await response.arrayBuffer();
       return new Uint8Array(buffer);
@@ -1115,6 +1123,10 @@ dd {
 
 .mono {
   font-family: "IBM Plex Mono", monospace;
+}
+
+.break-word {
+  word-break: break-word;
 }
 
 .manifest-pre {

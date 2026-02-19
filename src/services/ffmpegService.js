@@ -26,6 +26,7 @@ class FFmpegService {
     this.workerThreads = this._resolveWorkerThreads();
     this.coreVariant = null;
     this.lastOperationStrategy = null;
+    this.logSuppressionCounts = new Map();
   }
 
   _isCrossOriginIsolated() {
@@ -39,8 +40,18 @@ class FFmpegService {
     if (typeof navigator === "undefined") {
       return 1;
     }
+
+    // Hardcode 2 threads for chromium browsers
+    if (this._isChromium()) {
+      return 2;
+    }
+
     const concurrency = navigator.hardwareConcurrency || 4;
     return Math.max(1, Math.min(MAX_FFMPEG_THREADS, concurrency));
+  }
+
+  _isChromium() {
+    return /Chrome/.test(navigator.userAgent);
   }
 
   _resolveWorkerThreads() {
@@ -225,24 +236,47 @@ class FFmpegService {
    */
   clearLogs() {
     this.capturedLogs = [];
+    this.logSuppressionCounts.clear();
   }
 
   /**
    * Internal log handler
    */
   _handleLog({ type, message }) {
+    const text = String(message || "");
+    const suppressKey = this._getLogSuppressionKey(type, text);
+    if (suppressKey) {
+      const seen = this.logSuppressionCounts.get(suppressKey) || 0;
+      this.logSuppressionCounts.set(suppressKey, seen + 1);
+      // Keep first instance for context, suppress repeats to avoid browser log thrash.
+      if (seen > 0) {
+        return;
+      }
+    }
+
     // Store logs for later parsing
-    this.capturedLogs.push({ type, message, timestamp: Date.now() });
-    console.log("[FFmpegService] ffmpeg log", { type, message });
+    this.capturedLogs.push({ type, message: text, timestamp: Date.now() });
+    console.log("[FFmpegService] ffmpeg log", { type, message: text });
 
     // Forward to subscribers
     this.logCallbacks.forEach((cb) => {
       try {
-        cb({ type, message });
+        cb({ type, message: text });
       } catch (err) {
         console.error("Log callback error:", err);
       }
     });
+  }
+
+  _getLogSuppressionKey(type, text) {
+    if (type !== "stderr") return null;
+    if (/deprecated pixel format used/i.test(text)) {
+      return "warn:deprecated-pixel-format";
+    }
+    if (/^frame=\s*\d+/i.test(text.trim())) {
+      return "progress:frame-line";
+    }
+    return null;
   }
 
   /**
@@ -538,21 +572,20 @@ class FFmpegService {
       return outputData;
     } finally {
       // Best-effort cleanup to avoid stale files and memory growth after failed runs.
+      // Do not block operation completion on cleanup; some browsers can stall on large-file unmount/delete.
       if (wroteInput) {
-        try {
-          await this.deleteFile(inputName);
-        } catch {
+        this.deleteFile(inputName).catch(() => {
           // no-op
-        }
+        });
       }
       if (mountedInput?.mountPoint) {
-        await this._cleanupMountedInput(mountedInput.mountPoint);
+        this._cleanupMountedInput(mountedInput.mountPoint).catch(() => {
+          // no-op
+        });
       }
-      try {
-        await this.deleteFile(outputName);
-      } catch {
+      this.deleteFile(outputName).catch(() => {
         // no-op
-      }
+      });
     }
   }
 
@@ -687,6 +720,14 @@ class FFmpegService {
    * @returns {Promise<Uint8Array>} Thumbnail image data
    */
   async generateThumbnail(videoFile, timeSeconds, options = {}) {
+    // Chromium + MT has shown hangs on larger files for image extraction.
+    // Run thumbnail extraction in temporary ST mode for stability.
+    if (this._isChromium() && this._resolveActiveThreadCount() > 1) {
+      return await this.withTemporaryWorkerThreads(1, async () =>
+        this.generateThumbnail(videoFile, timeSeconds, options),
+      );
+    }
+
     const {
       quality = 2, // Lower = better quality but slower
     } = options;
@@ -708,17 +749,20 @@ class FFmpegService {
       crossOriginIsolated: this._isCrossOriginIsolated(),
     });
 
-    await this.writeFile(inputName, videoFile);
-
     const execArgs = [
+      "-hide_banner",
+      "-loglevel",
+      "warning",
       "-threads",
-      `${this._resolveActiveThreadCount()}`,
+      "1",
       "-ss",
       `${seekTime}`,
       "-i",
       inputName,
       "-an",
       "-frames:v",
+      "1",
+      "-update",
       "1",
       "-q:v",
       `${quality}`,
@@ -729,25 +773,24 @@ class FFmpegService {
 
     const start = performance.now ? performance.now() : Date.now();
     try {
-      const exitCode = await this.exec(execArgs);
+      // Reuse processVideo to prefer WORKERFS mount over full writeFile copies
+      // and to centralize robust cleanup in a finally block.
+      const thumbnailData = await this.processVideo(
+        videoFile,
+        inputName,
+        execArgs,
+        outputName,
+      );
       const duration =
         (performance.now ? performance.now() : Date.now()) - start;
-      console.log("[FFmpegService] exec finished", { exitCode, duration });
+      console.log("[FFmpegService] exec finished", { exitCode: 0, duration });
+      return thumbnailData;
     } catch (error) {
       const duration =
         (performance.now ? performance.now() : Date.now()) - start;
       console.error("[FFmpegService] exec failed", { error, duration });
       throw error;
     }
-
-    // Read output
-    const thumbnailData = await this.readFile(outputName);
-
-    // Cleanup
-    await this.deleteFile(inputName);
-    await this.deleteFile(outputName);
-
-    return thumbnailData;
   }
 }
 

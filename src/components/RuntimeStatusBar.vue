@@ -59,7 +59,7 @@ export default {
   gap: var(--space-xs);
   flex-wrap: wrap;
   align-items: center;
-  background: var(--bg-surface);
+  background: var(--bg-primary);
   border-bottom: 1px solid var(--border);
   padding: var(--space-md);
 }

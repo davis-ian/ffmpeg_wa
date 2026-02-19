@@ -13,6 +13,7 @@
       </v-progress-linear>
       <p class="loading-text">Processing video...</p>
     </div>
+    <p class="warning-text" v-if="warningMessage">{{ warningMessage }}</p>
 
     <div class="video-container" v-if="fileBlobUrl && !thumbnailSrc">
       <video
@@ -120,7 +121,10 @@
 </template>
 <script>
 import { ffmpegService } from "../services/ffmpegService.js";
+import { formatMediaError } from "../services/mediaErrors.js";
 import FileInput from "./ui/FileInput.vue";
+
+const CHROME_THUMBNAIL_GUARDRAIL_BYTES = 120 * 1024 * 1024;
 
 export default {
   name: "FfmpegDemo",
@@ -135,7 +139,20 @@ export default {
       fileBlobUrl: "",
       thumbnailTime: 0,
       thumbnailSrc: null,
+      warningMessage: "",
     };
+  },
+  computed: {
+    isChromiumBrowser() {
+      if (typeof navigator === "undefined") return false;
+      return /Chrome|Chromium/.test(navigator.userAgent);
+    },
+    isLargeFileForChrome() {
+      return (
+        this.isChromiumBrowser &&
+        Number(this.selectedFile?.size || 0) >= CHROME_THUMBNAIL_GUARDRAIL_BYTES
+      );
+    },
   },
   methods: {
     clearSelectedFile() {
@@ -145,31 +162,90 @@ export default {
       this.selectedFile = null;
       this.fileBlobUrl = null;
       this.thumbnailSrc = null;
+      this.warningMessage = "";
     },
     async generateThumbnail() {
       if (!this.selectedFile) return;
 
       this.showProgress = true;
+      this.warningMessage = "";
 
       try {
-        // ffmpegService.setWorkerThreads(1);
-        // Use centralized service for thumbnail generation
-        const thumbnailData = await ffmpegService.generateThumbnail(
-          this.selectedFile,
-          this.thumbnailTime,
-          { offsetSeconds: 2, quality: 2 },
+        const thumbnailData = await this.withTimeout(
+          ffmpegService.generateThumbnail(this.selectedFile, this.thumbnailTime, {
+            offsetSeconds: 2,
+            quality: 2,
+          }),
+          30000,
+          "Thumbnail generation timed out",
         );
 
         // Create URL for display
+        if (this.thumbnailSrc) {
+          URL.revokeObjectURL(this.thumbnailSrc);
+        }
         this.thumbnailSrc = URL.createObjectURL(
           new Blob([thumbnailData.buffer], { type: "image/jpeg" }),
         );
       } catch (error) {
         console.error("Error generating thumbnail:", error);
-        alert("Failed to generate thumbnail: " + error.message);
+        const fallbackBlob = await this.captureThumbnailFromVideo();
+        if (fallbackBlob) {
+          if (this.thumbnailSrc) {
+            URL.revokeObjectURL(this.thumbnailSrc);
+          }
+          this.thumbnailSrc = URL.createObjectURL(fallbackBlob);
+          this.warningMessage =
+            "FFmpeg thumbnail stalled; used browser frame capture fallback.";
+        } else {
+          const baseMessage = formatMediaError(
+            error,
+            "Failed to generate thumbnail.",
+          );
+          const detail =
+            this.isLargeFileForChrome || /memory|out of bounds/i.test(baseMessage)
+              ? " Large files in Chrome can exceed browser memory limits. Try a shorter clip, a smaller file, or Safari/Firefox."
+              : "";
+          alert(`Failed to generate thumbnail: ${baseMessage}${detail}`);
+        }
       } finally {
         this.showProgress = false;
       }
+    },
+    async withTimeout(promise, timeoutMs, timeoutMessage) {
+      let timerId = null;
+      try {
+        return await Promise.race([
+          promise,
+          new Promise((_, reject) => {
+            timerId = window.setTimeout(
+              () => reject(new Error(timeoutMessage)),
+              timeoutMs,
+            );
+          }),
+        ]);
+      } finally {
+        if (timerId) {
+          clearTimeout(timerId);
+        }
+      }
+    },
+    async captureThumbnailFromVideo() {
+      const video = document.getElementById("video");
+      if (!video || !video.videoWidth || !video.videoHeight) {
+        return null;
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        return null;
+      }
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      return await new Promise((resolve) => {
+        canvas.toBlob((blob) => resolve(blob || null), "image/jpeg", 0.9);
+      });
     },
     handleTimeUpdate() {
       const video = document.getElementById("video");
@@ -180,11 +256,16 @@ export default {
     },
     handleFileChange(event) {
       this.thumbnailSrc = null;
+      this.warningMessage = "";
       const files = event.target.files;
 
       if (files.length > 0) {
         this.selectedFile = files[0];
         this.fileBlobUrl = URL.createObjectURL(files[0]);
+        if (this.isLargeFileForChrome) {
+          this.warningMessage =
+            "Large videos in Chrome may fail due to browser memory limits. If thumbnail generation hangs, try a smaller clip or Safari/Firefox.";
+        }
       }
     },
     async terminate() {
@@ -192,6 +273,7 @@ export default {
       await this.initializeFfmpeg();
     },
     downloadThumbnail(url, fileName) {
+      console.log("downloading thumbnail");
       const element = document.createElement("a");
       element.href = url;
       element.download = fileName;
@@ -377,6 +459,15 @@ export default {
   margin-top: var(--space-sm);
   text-transform: uppercase;
   letter-spacing: 1px;
+}
+
+.warning-text {
+  margin: var(--space-sm) 0;
+  padding: var(--space-sm);
+  border: 1px solid rgba(255, 153, 0, 0.5);
+  background: rgba(255, 153, 0, 0.08);
+  color: var(--accent-hover);
+  font-size: 0.8rem;
 }
 
 /* Responsive */
