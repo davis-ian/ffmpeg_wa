@@ -44,6 +44,25 @@
         >
           Refresh Active
         </button>
+        <button
+          class="btn btn-primary"
+          @click="downloadActivePlaylistAsMp4"
+          :disabled="
+            !manifestUrl ||
+            isLoading ||
+            isDownloading ||
+            isRemuxing ||
+            !segments.length
+          "
+        >
+          {{
+            isRemuxing
+              ? "Muxing MP4..."
+              : isDownloading
+                ? `Downloading ${downloadedSegments}/${segments.length}...`
+                : "Download MP4"
+          }}
+        </button>
       </div>
       <p class="hint">
         CORS access is required. DRM-encrypted streams will not render in
@@ -271,6 +290,7 @@
 <script>
 import { nextTick } from "vue";
 import Hls from "hls.js";
+import { ffmpegService } from "../services/ffmpegService.js";
 import {
   fetchManifestText,
   detectPlaylistType,
@@ -310,9 +330,15 @@ export default {
       liveRefreshTimer: null,
       isAutoRefreshing: false,
       pendingAutoAdvanceIndex: null,
+      isDownloading: false,
+      isRemuxing: false,
+      downloadedSegments: 0,
     };
   },
   computed: {
+    isLoading() {
+      return this.isLoadingManifest || this.isLoadingSegments;
+    },
     manifestTypeLabel() {
       if (this.manifestType === "master") return "Master";
       if (this.manifestType === "media") return "Media";
@@ -422,6 +448,127 @@ export default {
         if (!auto) {
           this.isLoadingSegments = false;
         }
+      }
+    },
+
+    async downloadActivePlaylistAsMp4() {
+      if (!this.manifestUrl) {
+        this.errorMessage = "Enter a manifest URL";
+        return;
+      }
+      if (!this.segments.length) {
+        this.errorMessage = "No media segments available to download.";
+        return;
+      }
+
+      this.errorMessage = "";
+      this.isDownloading = true;
+      this.isRemuxing = false;
+      this.downloadedSegments = 0;
+
+      try {
+        const chunks = [];
+        let totalLength = 0;
+        for (const segment of this.segments) {
+          const url = segment?.absoluteUrl;
+          if (!url) continue;
+          const data = await this.fetchBinary(url);
+          chunks.push(data);
+          totalLength += data.byteLength;
+          this.downloadedSegments += 1;
+        }
+
+        if (!chunks.length) {
+          throw new Error("No segment data was downloaded.");
+        }
+
+        const merged = new Uint8Array(totalLength);
+        let offset = 0;
+        for (const part of chunks) {
+          merged.set(part, offset);
+          offset += part.byteLength;
+        }
+
+        this.isDownloading = false;
+        this.isRemuxing = true;
+
+        const mp4Data = await this.remuxToMp4(merged);
+        const blob = new Blob([mp4Data.buffer], { type: "video/mp4" });
+        const fileName = this.buildOutputFileName(
+          this.selectedVariantUrl || this.manifestUrl,
+        );
+        const downloadUrl = URL.createObjectURL(blob);
+        try {
+          const anchor = document.createElement("a");
+          anchor.href = downloadUrl;
+          anchor.download = fileName;
+          document.body.appendChild(anchor);
+          anchor.click();
+          document.body.removeChild(anchor);
+        } finally {
+          URL.revokeObjectURL(downloadUrl);
+        }
+      } catch (error) {
+        console.error("[HlsInspector] downloadActivePlaylistAsMp4 error", error);
+        this.errorMessage = error?.message || "Failed to download playlist MP4.";
+      } finally {
+        this.isDownloading = false;
+        this.isRemuxing = false;
+      }
+    },
+
+    async remuxToMp4(tsData) {
+      const stamp = Date.now();
+      const inputName = `hls_inspector_${stamp}.ts`;
+      const outputName = `hls_inspector_${stamp}.mp4`;
+      try {
+        await ffmpegService.load();
+        ffmpegService.setLastOperationStrategy("hls-inspector-remux-copy");
+        await ffmpegService.writeFile(inputName, tsData);
+        const exitCode = await ffmpegService.exec([
+          "-i",
+          inputName,
+          "-c",
+          "copy",
+          "-movflags",
+          "faststart",
+          outputName,
+        ]);
+        if (exitCode !== 0) {
+          throw new Error(`FFmpeg remux failed with exit code ${exitCode}`);
+        }
+        return await ffmpegService.readFile(outputName);
+      } finally {
+        try {
+          await ffmpegService.deleteFile(inputName);
+        } catch {
+          // no-op
+        }
+        try {
+          await ffmpegService.deleteFile(outputName);
+        } catch {
+          // no-op
+        }
+      }
+    },
+
+    async fetchBinary(url) {
+      const response = await fetch(url, { mode: "cors" });
+      if (!response.ok) {
+        throw new Error(`Segment request failed (${response.status}) for ${url}`);
+      }
+      const buffer = await response.arrayBuffer();
+      return new Uint8Array(buffer);
+    },
+
+    buildOutputFileName(sourceUrl) {
+      try {
+        const pathname = new URL(sourceUrl).pathname;
+        const base = pathname.split("/").pop() || "stream";
+        const clean = base.replace(/\.m3u8$/i, "") || "stream";
+        return `${clean}.mp4`;
+      } catch {
+        return "stream.mp4";
       }
     },
 

@@ -17,7 +17,6 @@ import Sidebar from "./components/Sidebar.vue";
 import RuntimeStatusBar from "./components/RuntimeStatusBar.vue";
 import FfmpegDemo from "./components/FfmpegDemo.vue";
 import MetadataViewer from "./components/MetadataViewer.vue";
-import HlsDownloader from "./components/HlsDownloader.vue";
 import HlsInspector from "./components/HlsInspector.vue";
 import VideoConverter from "./components/VideoConverter.vue";
 import ImageConverter from "./components/ImageConverter.vue";
@@ -34,7 +33,6 @@ import { TOOL_DEFINITIONS } from "./tools/toolRegistry.js";
 const COMPONENT_MAP = {
   FfmpegDemo,
   MetadataViewer,
-  HlsDownloader,
   HlsInspector,
   VideoConverter,
   ImageConverter,

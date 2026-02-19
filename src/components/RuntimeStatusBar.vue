@@ -10,7 +10,7 @@
     </div>
     <div class="runtime-pill">
       <span class="label">Isolation</span>
-      <span class="value">{{ status.crossOriginIsolated ? 'On' : 'Off' }}</span>
+      <span class="value">{{ status.crossOriginIsolated ? "On" : "Off" }}</span>
     </div>
     <div class="runtime-pill" v-if="status.lastOperationStrategy">
       <span class="label">Last Strategy</span>
@@ -20,10 +20,10 @@
 </template>
 
 <script>
-import { ffmpegService } from '../services/ffmpegService.js';
+import { ffmpegService } from "../services/ffmpegService.js";
 
 export default {
-  name: 'RuntimeStatusBar',
+  name: "RuntimeStatusBar",
   data() {
     return {
       status: ffmpegService.getRuntimeStatus(),
@@ -32,8 +32,8 @@ export default {
   },
   computed: {
     coreLabel() {
-      if (!this.status.isLoaded) return 'Not loaded';
-      return this.status.coreVariant === 'mt' ? 'MT' : 'ST';
+      if (!this.status.isLoaded) return "Not loaded";
+      return this.status.coreVariant === "mt" ? "MT" : "ST";
     },
   },
   mounted() {
@@ -61,7 +61,7 @@ export default {
   align-items: center;
   background: var(--bg-surface);
   border-bottom: 1px solid var(--border);
-  padding: var(--space-xs) var(--space-md);
+  padding: var(--space-md);
 }
 
 .runtime-pill {

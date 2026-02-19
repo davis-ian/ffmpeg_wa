@@ -5,7 +5,7 @@
       <button
         class="mobile-menu-toggle"
         type="button"
-        :aria-expanded="String(isMobileOpen)"
+        :aria-expanded="String(isMobileOpenDownl"
         aria-controls="sidebarNav"
         @click="toggleMobileMenu"
       >
@@ -363,7 +363,7 @@ export default {
 .sidebar {
   width: 200px;
   height: 100vh;
-  background-color: var(--bg-secondary);
+  background-color: var(--bg-primary);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
