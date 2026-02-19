@@ -5,7 +5,7 @@
       <button
         class="mobile-menu-toggle"
         type="button"
-        :aria-expanded="String(isMobileOpenDownl"
+        :aria-expanded="String(isMobileOpen)"
         aria-controls="sidebarNav"
         @click="toggleMobileMenu"
       >
