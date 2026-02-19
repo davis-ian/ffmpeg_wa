@@ -1,4 +1,4 @@
-@import './styles/theme.css';
+@import "./styles/theme.css";
 
 /* Global Base Styles */
 * {
@@ -122,4 +122,15 @@ input[type="file"]:hover {
 
 .pa-6 {
   padding: calc(var(--space-lg) * 1.5);
+}
+
+::selection {
+  background-color: var(--accent); /* Highlight background color */
+  color: var(--bg-primary); /* Highlight text color */
+}
+
+/* For Firefox compatibility */
+::-moz-selection {
+  background-color: var(--accent);
+  color: var(--bg-primary);
 }
