@@ -23,7 +23,7 @@ import VideoConverter from "./components/VideoConverter.vue";
 import ImageConverter from "./components/ImageConverter.vue";
 import AudioTrimmer from "./components/AudioTrimmer.vue";
 import AudioExtractor from "./components/AudioExtractor.vue";
-import FrameSequenceExport from "./components/FrameSequenceExport.vue";
+// import FrameSequenceExport from "./components/FrameSequenceExport.vue";
 import MediaJoin from "./components/MediaJoin.vue";
 import VideoTrimmer from "./components/VideoTrimmer.vue";
 // import SilenceCutter from './components/SilenceCutter.vue';
@@ -40,7 +40,7 @@ const COMPONENT_MAP = {
   ImageConverter,
   AudioTrimmer,
   AudioExtractor,
-  FrameSequenceExport,
+  // FrameSequenceExport,
   MediaJoin,
   VideoTrimmer,
   // SilenceCutter,

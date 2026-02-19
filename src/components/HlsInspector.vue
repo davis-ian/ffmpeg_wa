@@ -5,7 +5,8 @@
         <p class="eyebrow">Video · Insight</p>
         <h1>HLS Inspector</h1>
         <p class="lede">
-          Fetch any HLS manifest, explore its playlists, and spin up mini preview players for individual chunks before you commit to a download.
+          Fetch any HLS manifest, explore its playlists, and spin up mini
+          preview players for individual chunks before you commit to a download.
         </p>
       </div>
     </header>
@@ -13,7 +14,9 @@
     <section class="panel">
       <div class="panel-heading">
         <h2>Manifest Source</h2>
-        <span class="status-pill" v-if="rootManifestFetchedAt">Loaded {{ formatRelativeTime(rootManifestFetchedAt) }}</span>
+        <span class="status-pill" v-if="rootManifestFetchedAt"
+          >Loaded {{ formatRelativeTime(rootManifestFetchedAt) }}</span
+        >
       </div>
       <label for="manifestUrl">Manifest URL (.m3u8)</label>
       <div class="manifest-input-row">
@@ -42,14 +45,20 @@
           Refresh Active
         </button>
       </div>
-      <p class="hint">CORS access is required. DRM-encrypted streams will not render in preview tiles.</p>
+      <p class="hint">
+        CORS access is required. DRM-encrypted streams will not render in
+        preview tiles.
+      </p>
     </section>
 
     <section class="panel" v-if="segments.length">
       <div class="panel-heading">
         <h2>Chunk Timeline</h2>
         <div class="panel-actions">
-          <span class="status-pill" v-if="activePlaylistFetchedAt">Refreshed {{ formatRelativeTime(activePlaylistFetchedAt) || "—" }}</span>
+          <span class="status-pill" v-if="activePlaylistFetchedAt"
+            >Refreshed
+            {{ formatRelativeTime(activePlaylistFetchedAt) || "—" }}</span
+          >
           <input
             v-model.trim="segmentFilter"
             class="filter-input"
@@ -79,7 +88,9 @@
               <span class="chunk-index">#{{ segment.index }}</span>
               <span>{{ formatStart(segment.startTime) }}</span>
               <span>{{ formatDuration(segment.duration) }}</span>
-              <span>{{ displayTimestamp(segment.programDateTime) || "—" }}</span>
+              <span>{{
+                displayTimestamp(segment.programDateTime) || "—"
+              }}</span>
               <span class="uri">{{ segment.uri }}</span>
             </button>
           </div>
@@ -110,8 +121,14 @@
           </div>
           <div class="chunk-preview-meta" v-if="previewSegment">
             <p><strong>Index</strong> #{{ previewSegment.index }}</p>
-            <p><strong>Duration</strong> {{ formatDuration(previewSegment.duration) }}</p>
-            <p><strong>Program Time</strong> {{ displayTimestamp(previewSegment.programDateTime) || "—" }}</p>
+            <p>
+              <strong>Duration</strong>
+              {{ formatDuration(previewSegment.duration) }}
+            </p>
+            <p>
+              <strong>Program Time</strong>
+              {{ displayTimestamp(previewSegment.programDateTime) || "—" }}
+            </p>
             <p class="mono">{{ previewSegment.absoluteUrl }}</p>
           </div>
           <p class="hint" v-else>Waiting for a chunk selection.</p>
@@ -125,8 +142,12 @@
         <h2>Root Manifest</h2>
         <div class="detail-tags">
           <span class="tag">{{ manifestTypeLabel }}</span>
-          <span class="tag" v-if="manifestSummary?.isLowLatency">Low-Latency</span>
-          <span class="tag" v-if="manifestSummary?.hasIFrames">I-Frame Tracks</span>
+          <span class="tag" v-if="manifestSummary?.isLowLatency"
+            >Low-Latency</span
+          >
+          <span class="tag" v-if="manifestSummary?.hasIFrames"
+            >I-Frame Tracks</span
+          >
         </div>
       </div>
       <dl class="data-grid">
@@ -150,27 +171,39 @@
       <div class="manifest-raw" v-if="rootManifestText">
         <div class="manifest-raw__heading">
           <h3>Raw manifest</h3>
-          <span class="mono small-label">Last updated {{ formatRelativeTime(rootManifestFetchedAt) || "—" }}</span>
+          <span class="mono small-label"
+            >Last updated
+            {{ formatRelativeTime(rootManifestFetchedAt) || "—" }}</span
+          >
         </div>
-        <pre class="manifest-pre manifest-pre--full"><code>{{ rootManifestText }}</code></pre>
+        <pre
+          class="manifest-pre manifest-pre--full"
+        ><code>{{ rootManifestText }}</code></pre>
       </div>
     </section>
 
     <section class="panel" v-if="manifestType === 'master' && variants.length">
       <div class="panel-heading">
         <h2>Variant Streams</h2>
-        <span class="status-pill" v-if="selectedVariantUrl">Active variant</span>
+        <span class="status-pill" v-if="selectedVariantUrl"
+          >Active variant</span
+        >
       </div>
-      <select
-        v-model="selectedVariantUrl"
-        :disabled="isLoadingSegments"
-      >
-        <option v-for="variant in variants" :key="variant.url" :value="variant.url">
+      <select v-model="selectedVariantUrl" :disabled="isLoadingSegments">
+        <option
+          v-for="variant in variants"
+          :key="variant.url"
+          :value="variant.url"
+        >
           {{ variant.label }}
         </option>
       </select>
       <ul class="variant-list">
-        <li v-for="variant in variants" :key="`${variant.url}-meta`" :class="{ active: variant.url === selectedVariantUrl }">
+        <li
+          v-for="variant in variants"
+          :key="`${variant.url}-meta`"
+          :class="{ active: variant.url === selectedVariantUrl }"
+        >
           <span>{{ variant.label }}</span>
           <small>
             <span v-if="variant.codecs">{{ variant.codecs }}</span>
@@ -189,7 +222,9 @@
         <div>
           <dt>Target Duration</dt>
           <dd>
-            <span v-if="manifestMetadata?.targetDuration">{{ manifestMetadata.targetDuration }}s</span>
+            <span v-if="manifestMetadata?.targetDuration"
+              >{{ manifestMetadata.targetDuration }}s</span
+            >
             <span v-else>—</span>
           </dd>
         </div>
@@ -199,7 +234,12 @@
         </div>
         <div>
           <dt>Playlist Type</dt>
-          <dd>{{ manifestMetadata?.playlistType || (manifestMetadata?.hasEndList ? "VOD" : "Live") }}</dd>
+          <dd>
+            {{
+              manifestMetadata?.playlistType ||
+              (manifestMetadata?.hasEndList ? "VOD" : "Live")
+            }}
+          </dd>
         </div>
         <div>
           <dt>Encryption</dt>
@@ -209,15 +249,20 @@
       <div class="manifest-raw" v-if="activePlaylistText">
         <div class="manifest-raw__heading">
           <h3>Playlist source</h3>
-          <span class="mono small-label">Fetched {{ formatRelativeTime(activePlaylistFetchedAt) || "—" }}</span>
+          <span class="mono small-label"
+            >Fetched
+            {{ formatRelativeTime(activePlaylistFetchedAt) || "—" }}</span
+          >
         </div>
-        <pre class="manifest-pre manifest-pre--full"><code>{{ activePlaylistText }}</code></pre>
+        <pre
+          class="manifest-pre manifest-pre--full"
+        ><code>{{ activePlaylistText }}</code></pre>
       </div>
       <p class="warning" v-if="manifestMetadata?.hasEncryption">
-        ⚠️ Encryption tags detected. Chunk previews may fail unless the keys are publicly accessible.
+        ⚠️ Encryption tags detected. Chunk previews may fail unless the keys are
+        publicly accessible.
       </p>
     </section>
-
 
     <p class="error" v-if="errorMessage">{{ errorMessage }}</p>
   </div>
@@ -340,7 +385,8 @@ export default {
         await this.loadMediaPlaylist(text, sourceUrl);
       } catch (error) {
         console.error("[HlsInspector] loadVariantSegments error", error);
-        this.errorMessage = error?.message || "Failed to load variant playlist.";
+        this.errorMessage =
+          error?.message || "Failed to load variant playlist.";
       } finally {
         this.isLoadingSegments = false;
       }
@@ -348,9 +394,10 @@ export default {
 
     async refreshActivePlaylist(options = {}) {
       const { auto = false } = options;
-      const targetUrl = this.manifestType === "master" && this.selectedVariantUrl
-        ? this.selectedVariantUrl
-        : this.manifestUrl;
+      const targetUrl =
+        this.manifestType === "master" && this.selectedVariantUrl
+          ? this.selectedVariantUrl
+          : this.manifestUrl;
       if (!targetUrl) {
         return;
       }
@@ -393,7 +440,9 @@ export default {
         this.clearPreviewState();
         this.selectedSegmentIndex = null;
       } else if (Number.isFinite(previousIndex)) {
-        const matchingSegment = segments.find((item) => item.index === previousIndex);
+        const matchingSegment = segments.find(
+          (item) => item.index === previousIndex,
+        );
         if (matchingSegment) {
           this.selectedSegmentIndex = matchingSegment.index;
           this.previewSegment = matchingSegment;
@@ -414,21 +463,25 @@ export default {
       }
 
       if (Number.isFinite(this.pendingAutoAdvanceIndex)) {
-        const pendingSegment = segments.find((item) => item.index === this.pendingAutoAdvanceIndex);
+        const pendingSegment = segments.find(
+          (item) => item.index === this.pendingAutoAdvanceIndex,
+        );
         if (pendingSegment) {
           this.pendingAutoAdvanceIndex = null;
           this.handleSegmentClick(pendingSegment);
         }
       }
 
-      const shouldAutoSelectLatest =
+      const shouldAutoSelectSegment =
         segments.length > 0 &&
         !Number.isFinite(this.selectedSegmentIndex) &&
         !Number.isFinite(this.pendingAutoAdvanceIndex) &&
         !this.isAutoRefreshing;
-      if (shouldAutoSelectLatest) {
-        const latestSegment = segments[segments.length - 1];
-        this.handleSegmentClick(latestSegment);
+      if (shouldAutoSelectSegment) {
+        const defaultSegment = this.isLivePlaylist()
+          ? segments[segments.length - 1]
+          : segments[0];
+        this.handleSegmentClick(defaultSegment);
       }
 
       await nextTick();
@@ -576,7 +629,9 @@ export default {
       }
       const currentIndex = this.selectedSegmentIndex;
       const segments = this.segments;
-      const currentPosition = segments.findIndex((segment) => segment.index === currentIndex);
+      const currentPosition = segments.findIndex(
+        (segment) => segment.index === currentIndex,
+      );
       if (currentPosition < 0) {
         return;
       }
@@ -745,7 +800,7 @@ export default {
 .hls-inspector {
   max-width: 1100px;
   margin: 0 auto;
-  padding: var(--space-lg) var(--space-md) var(--space-xxl);
+  padding: var(--space-md);
   color: var(--text-primary);
 }
 
@@ -976,7 +1031,6 @@ dd {
   min-width: 220px;
 }
 
-
 .chunk-view {
   display: flex;
   gap: var(--space-md);
@@ -1020,7 +1074,9 @@ dd {
   background: transparent;
   text-align: left;
   cursor: pointer;
-  transition: background var(--transition-fast), box-shadow var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .chunk-row:hover {

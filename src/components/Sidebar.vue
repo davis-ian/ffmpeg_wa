@@ -1,7 +1,7 @@
 <template>
   <aside class="sidebar">
     <div class="sidebar-header">
-      <h2 class="app-title">ClipForge</h2>
+      <h2 class="app-title">Media Toolkit</h2>
       <button
         class="mobile-menu-toggle"
         type="button"
@@ -18,7 +18,11 @@
       <span class="mobile-current-name">{{ currentToolLabel }}</span>
     </div>
 
-    <nav id="sidebarNav" class="sidebar-nav" :class="{ 'is-mobile-open': isMobileOpen }">
+    <nav
+      id="sidebarNav"
+      class="sidebar-nav"
+      :class="{ 'is-mobile-open': isMobileOpen }"
+    >
       <section v-for="group in groupedTools" :key="group.key" class="nav-group">
         <h3 class="group-title">{{ group.label }}</h3>
 
@@ -280,7 +284,12 @@
       <p class="version">v1.0</p>
       <p class="credit">
         Created by
-        <a href="https://iandavis.dev/" target="_blank" rel="noopener noreferrer">Ian Davis</a>
+        <a
+          href="https://iandavis.dev/"
+          target="_blank"
+          rel="noopener noreferrer"
+          >Ian Davis</a
+        >
       </p>
     </div>
   </aside>
@@ -324,7 +333,9 @@ export default {
       }).filter((group) => group.items.length > 0);
     },
     currentToolLabel() {
-      const activeTool = this.tools.find((item) => item.id === this.currentTool);
+      const activeTool = this.tools.find(
+        (item) => item.id === this.currentTool,
+      );
       return activeTool ? activeTool.label : "Select Tool";
     },
   },

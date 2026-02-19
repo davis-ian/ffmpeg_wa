@@ -20,7 +20,9 @@ export async function fetchManifestText(manifestUrl) {
   const absoluteUrl = resolveUrl(manifestUrl, window.location.href);
   const response = await fetch(absoluteUrl, { mode: "cors" });
   if (!response.ok) {
-    throw new Error(`Manifest request failed (${response.status}) for ${absoluteUrl}`);
+    throw new Error(
+      `Manifest request failed (${response.status}) for ${absoluteUrl}`,
+    );
   }
   const text = await response.text();
   assertManifestText(text, absoluteUrl);
@@ -40,6 +42,8 @@ export function parseMasterPlaylist(manifestText, baseUrl) {
     .map((line) => line.trim())
     .filter(Boolean);
   const variants = [];
+
+  console.log(lines, "lines");
 
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i];
@@ -114,15 +118,23 @@ export function parseMediaPlaylist(manifestText, baseUrl) {
         currentDuration = Number(durationValue);
         currentTitle = title.trim();
       } else if (line.startsWith("#EXT-X-PROGRAM-DATE-TIME")) {
-        currentProgramDateTime = line.replace("#EXT-X-PROGRAM-DATE-TIME:", "").trim();
+        currentProgramDateTime = line
+          .replace("#EXT-X-PROGRAM-DATE-TIME:", "")
+          .trim();
       } else if (line.startsWith("#EXT-X-TARGETDURATION")) {
-        metadata.targetDuration = Number(line.replace("#EXT-X-TARGETDURATION:", "").trim());
+        metadata.targetDuration = Number(
+          line.replace("#EXT-X-TARGETDURATION:", "").trim(),
+        );
       } else if (line.startsWith("#EXT-X-VERSION")) {
         metadata.version = Number(line.replace("#EXT-X-VERSION:", "").trim());
       } else if (line.startsWith("#EXT-X-MEDIA-SEQUENCE")) {
-        metadata.mediaSequence = Number(line.replace("#EXT-X-MEDIA-SEQUENCE:", "").trim());
+        metadata.mediaSequence = Number(
+          line.replace("#EXT-X-MEDIA-SEQUENCE:", "").trim(),
+        );
       } else if (line.startsWith("#EXT-X-PLAYLIST-TYPE")) {
-        metadata.playlistType = line.replace("#EXT-X-PLAYLIST-TYPE:", "").trim();
+        metadata.playlistType = line
+          .replace("#EXT-X-PLAYLIST-TYPE:", "")
+          .trim();
       } else if (line.startsWith("#EXT-X-BYTERANGE")) {
         currentByteRange = line.replace("#EXT-X-BYTERANGE:", "").trim();
       } else if (line.startsWith("#EXT-X-DISCONTINUITY")) {
@@ -160,9 +172,10 @@ export function parseMediaPlaylist(manifestText, baseUrl) {
 }
 
 export function buildSingleSegmentPlaylist(segment) {
-  const safeDuration = segment?.duration && Number.isFinite(segment.duration)
-    ? segment.duration
-    : 2;
+  const safeDuration =
+    segment?.duration && Number.isFinite(segment.duration)
+      ? segment.duration
+      : 2;
   const targetDuration = Math.max(1, Math.ceil(safeDuration));
   const mediaSequence = Number.isFinite(segment?.index) ? segment.index : 0;
 
