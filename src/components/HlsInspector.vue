@@ -35,7 +35,7 @@
         >
           {{ isLoadingManifest ? "Loading..." : "Inspect" }}
         </button>
-        <button
+        <!-- <button
           v-if="rootManifestText"
           class="btn"
           type="button"
@@ -43,9 +43,22 @@
           :disabled="isLoadingManifest || isLoadingSegments"
         >
           Refresh Active
-        </button>
+        </button> -->
         <button
-          class="btn btn-primary"
+              class="btn "
+              @click="copyShareUrl"
+              :disabled="
+                !manifestUrl ||
+                isLoading ||
+                isDownloading ||
+                isRemuxing ||
+                !segments.length
+              "
+            >
+              Copy Share Url
+              </button>
+        <button
+          class="btn "
           @click="downloadActivePlaylistAsMp4"
           :disabled="
             !manifestUrl ||
@@ -63,19 +76,6 @@
                 : "Download MP4"
           }}
         </button>
-        <button
-              class="btn btn-primary"
-              @click="copyShareUrl"
-              :disabled="
-                !manifestUrl ||
-                isLoading ||
-                isDownloading ||
-                isRemuxing ||
-                !segments.length
-              "
-            >
-              Copy Share Url
-              </button>
       </div>
       <p class="hint">
         CORS access is required. DRM-encrypted streams will not render in
