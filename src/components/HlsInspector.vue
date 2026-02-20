@@ -63,6 +63,19 @@
                 : "Download MP4"
           }}
         </button>
+        <button
+              class="btn btn-primary"
+              @click="copyShareUrl"
+              :disabled="
+                !manifestUrl ||
+                isLoading ||
+                isDownloading ||
+                isRemuxing ||
+                !segments.length
+              "
+            >
+              Copy Share Url
+              </button>
       </div>
       <p class="hint">
         CORS access is required. DRM-encrypted streams will not render in
@@ -306,8 +319,11 @@ import {
 export default {
   name: "HlsInspector",
   data() {
+    const params = new URLSearchParams(window.location.search);
+    const srcFromUrl = params.get('manifest');
+
     return {
-      manifestUrl: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+      manifestUrl: srcFromUrl ?? "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
       rootManifestText: "",
       rootManifestFetchedAt: null,
       manifestType: "",
@@ -369,9 +385,19 @@ export default {
       await nextTick();
       this.scrollChunksToBottom();
     },
+    manifestUrl(newUrl) {
+      const params = new URLSearchParams(window.location.search);
+      params.set('manifest', newUrl);
+      window.history.pushState({}, '', `?${params.toString()}`)
+    },
   },
   methods: {
-    async inspectManifest() {
+    async copyShareUrl() {
+      const params = new URLSearchParams(window.location.search);
+      await navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}?${params.toString()}`);
+        this.$toast('Copied to clipboard', { type: 'success' });
+  },
+  async inspectManifest() {
       if (!this.manifestUrl) {
         this.errorMessage = "Enter a manifest URL";
         return;
@@ -943,6 +969,15 @@ export default {
       this.pendingAutoAdvanceIndex = null;
       this.clearPreviewState();
     },
+  },
+  mounted() {
+    const params = new URLSearchParams(window.location.search);
+    const manifestFromUrl = params.get('manifest');
+
+    if (manifestFromUrl) {
+
+      this.inspectManifest()
+    }
   },
   beforeUnmount() {
     this.clearPreviewState();

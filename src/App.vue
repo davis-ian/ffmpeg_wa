@@ -53,9 +53,12 @@ export default {
     RuntimeStatusBar,
   },
   data() {
+    const params = new URLSearchParams(window.location.search);
+    const toolFromUrl = params.get('tool');
+    const validTool = TOOL_DEFINITIONS.find(t => t.id === toolFromUrl)
     return {
       toolDefinitions: TOOL_DEFINITIONS,
-      currentTool: "hls-inspector",
+      currentTool: validTool ? toolFromUrl : "hls-inspector",
     };
   },
   computed: {
@@ -67,6 +70,13 @@ export default {
       return COMPONENT_MAP[tool.component] || null;
     },
   },
+  watch: {
+    currentTool (newTool) {
+      const params = new URLSearchParams(window.location.search);
+      params.set('tool', newTool);
+      window.history.pushState({}, '', `?${params.toString()}`)
+    }
+  }
 };
 </script>
 
