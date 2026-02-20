@@ -98,6 +98,7 @@ export default {
 
 .main-content {
   flex: 1;
+  width: calc(100% - 200px);
   margin-left: 200px;
   background-color: var(--bg-primary);
   min-height: 100vh;
@@ -109,6 +110,7 @@ export default {
   }
 
   .main-content {
+    width: 100%;
     margin-left: 0;
   }
 }

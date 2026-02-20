@@ -99,7 +99,7 @@
           />
         </div>
       </div>
-      <div class="chunk-view">
+      <div  class="chunk-view">
         <div class="chunk-list">
           <div class="chunk-list-header">
             <span>#</span>
@@ -383,7 +383,7 @@ export default {
     },
     async segments() {
       await nextTick();
-      this.scrollChunksToBottom();
+      this.scrollChunkListForPlaylistType();
     },
     manifestUrl(newUrl) {
       const params = new URLSearchParams(window.location.search);
@@ -666,7 +666,7 @@ export default {
       }
 
       await nextTick();
-      this.scrollChunksToBottom();
+      this.scrollChunkListForPlaylistType();
     },
 
     startPreviewPlayback(videoEl) {
@@ -831,11 +831,16 @@ export default {
       }
     },
 
-    scrollChunksToBottom() {
+    scrollChunkListForPlaylistType() {
       const scroller = this.$refs?.chunkListScroller;
-      if (scroller) {
-        scroller.scrollTop = scroller.scrollHeight;
+      if (!scroller) {
+        return;
       }
+      if (this.isLivePlaylist()) {
+        scroller.scrollTop = scroller.scrollHeight;
+        return;
+      }
+      scroller.scrollTop = 0;
     },
 
     clearPreviewState(options = {}) {
@@ -989,9 +994,11 @@ export default {
 <style scoped>
 .hls-inspector {
   max-width: 1100px;
+  width: 100%;
   margin: 0 auto;
   padding: var(--space-md);
   color: var(--text-primary);
+  box-sizing: border-box;
 }
 
 .page-header {
@@ -1023,6 +1030,8 @@ export default {
   padding: var(--space-md);
   margin-bottom: var(--space-md);
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .panel-heading {
@@ -1030,6 +1039,7 @@ export default {
   align-items: baseline;
   justify-content: space-between;
   gap: var(--space-sm);
+  flex-wrap: wrap;
   margin-bottom: var(--space-sm);
 }
 
@@ -1045,6 +1055,7 @@ export default {
   align-items: center;
   gap: var(--space-sm);
   flex-wrap: wrap;
+  min-width: 0;
 }
 
 .status-pill {
@@ -1082,8 +1093,8 @@ textarea {
 }
 
 .manifest-input-row input {
-  flex: 1 1 auto;
-  min-width: 240px;
+  flex: 1 1 240px;
+  min-width: 0;
 }
 
 .hint {
@@ -1143,6 +1154,10 @@ textarea {
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: var(--space-sm);
   margin: 0 0 var(--space-sm);
+}
+
+.data-grid .mono {
+  overflow-wrap: anywhere;
 }
 
 dt {
@@ -1222,18 +1237,22 @@ dd {
 }
 
 .filter-input {
-  min-width: 220px;
+  flex: 1 1 220px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .chunk-view {
   display: flex;
   gap: var(--space-md);
   flex-wrap: wrap;
+  align-items: stretch;
+  width: 100%;
 }
 
 .chunk-list {
-  flex: 1 1 52%;
-  min-width: 280px;
+  flex: 1 1 360px;
+  min-width: 0;
   border: 1px solid var(--border);
   background: var(--bg-primary);
   display: flex;
@@ -1242,7 +1261,12 @@ dd {
 
 .chunk-list-header {
   display: grid;
-  grid-template-columns: 0.4fr 0.7fr 0.8fr 1.3fr 2fr;
+  grid-template-columns:
+    minmax(0, 0.5fr)
+    minmax(0, 0.8fr)
+    minmax(0, 0.9fr)
+    minmax(0, 1.2fr)
+    minmax(0, 2fr);
   gap: var(--space-xs);
   padding: 0.55rem;
   text-transform: uppercase;
@@ -1261,7 +1285,12 @@ dd {
 
 .chunk-row {
   display: grid;
-  grid-template-columns: 0.4fr 0.7fr 0.8fr 1.3fr 2fr;
+  grid-template-columns:
+    minmax(0, 0.5fr)
+    minmax(0, 0.8fr)
+    minmax(0, 0.9fr)
+    minmax(0, 1.2fr)
+    minmax(0, 2fr);
   gap: var(--space-xs);
   padding: 0.5rem;
   border-bottom: 1px solid var(--border);
@@ -1301,7 +1330,7 @@ dd {
 
 .chunk-preview {
   flex: 1 1 320px;
-  min-width: 260px;
+  min-width: 0;
   border: 1px solid var(--border);
   padding: var(--space-sm);
   background: var(--bg-primary);
@@ -1359,6 +1388,17 @@ dd {
   color: #e5534b;
   font-weight: 600;
   margin-top: var(--space-md);
+}
+
+@media (max-width: 960px) {
+  .chunk-view {
+    flex-direction: column-reverse;
+  }
+
+  .chunk-list,
+  .chunk-preview {
+    flex-basis: 100%;
+  }
 }
 
 @media (max-width: 768px) {
