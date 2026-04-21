@@ -18,7 +18,17 @@ function resolveUrl(path, baseUrl) {
 
 export async function fetchManifestText(manifestUrl) {
   const absoluteUrl = resolveUrl(manifestUrl, window.location.href);
-  const response = await fetch(absoluteUrl, { mode: "cors" });
+  let response;
+  try {
+    response = await fetch(absoluteUrl, { mode: "cors" });
+  } catch (err) {
+    if (err instanceof TypeError) {
+      throw new Error(
+        `Could not fetch manifest from ${absoluteUrl} — the server may not allow cross-origin (CORS) requests. Check that the server includes an Access-Control-Allow-Origin header.`,
+      );
+    }
+    throw err;
+  }
   if (!response.ok) {
     throw new Error(
       `Manifest request failed (${response.status}) for ${absoluteUrl}`,
@@ -42,11 +52,32 @@ export function parseMasterPlaylist(manifestText, baseUrl) {
     .map((line) => line.trim())
     .filter(Boolean);
   const variants = [];
-
-  console.log(lines, "lines");
+  const mediaRenditions = [];
 
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i];
+
+    if (line.startsWith("#EXT-X-MEDIA")) {
+      const typeMatch = line.match(/TYPE=([A-Z-]+)/);
+      const groupMatch = line.match(/GROUP-ID="([^"]+)"/);
+      const nameMatch = line.match(/NAME="([^"]+)"/);
+      const langMatch = line.match(/LANGUAGE="([^"]+)"/);
+      const uriMatch = line.match(/URI="([^"]+)"/);
+      const isDefault = /DEFAULT=YES/.test(line);
+
+      if (uriMatch) {
+        mediaRenditions.push({
+          type: typeMatch ? typeMatch[1] : "UNKNOWN",
+          groupId: groupMatch ? groupMatch[1] : null,
+          name: nameMatch ? nameMatch[1] : null,
+          language: langMatch ? langMatch[1] : null,
+          isDefault,
+          url: resolveUrl(uriMatch[1], baseUrl),
+        });
+      }
+      continue;
+    }
+
     if (!line.startsWith("#EXT-X-STREAM-INF")) {
       continue;
     }
@@ -83,7 +114,7 @@ export function parseMasterPlaylist(manifestText, baseUrl) {
     });
   }
 
-  return variants;
+  return { variants, mediaRenditions };
 }
 
 export function parseMediaPlaylist(manifestText, baseUrl) {

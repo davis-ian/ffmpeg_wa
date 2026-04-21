@@ -245,6 +245,23 @@
           </small>
         </li>
       </ul>
+
+      <template v-if="mediaRenditions.length">
+        <h3 style="margin-top: 1.25rem">Media Renditions</h3>
+        <ul class="variant-list">
+          <li
+            v-for="rendition in mediaRenditions"
+            :key="rendition.url"
+          >
+            <span>{{ rendition.name || rendition.groupId }}</span>
+            <small>
+              <span>{{ rendition.type }}</span>
+              <span v-if="rendition.language"> · {{ rendition.language }}</span>
+              <span v-if="rendition.isDefault"> · default</span>
+            </small>
+          </li>
+        </ul>
+      </template>
     </section>
 
     <section class="panel" v-if="activePlaylistText">
@@ -329,6 +346,7 @@ export default {
       manifestType: "",
       manifestSummary: null,
       variants: [],
+      mediaRenditions: [],
       selectedVariantUrl: "",
       activePlaylistText: "",
       manifestMetadata: null,
@@ -414,7 +432,9 @@ export default {
         this.rootManifestFetchedAt = new Date();
 
         if (this.manifestType === "master") {
-          this.variants = parseMasterPlaylist(text, sourceUrl);
+          const { variants, mediaRenditions } = parseMasterPlaylist(text, sourceUrl);
+          this.variants = variants;
+          this.mediaRenditions = mediaRenditions;
           if (!this.variants.length) {
             this.errorMessage = "No variant streams found in master manifest.";
             return;
@@ -965,6 +985,7 @@ export default {
     resetInspectorState() {
       this.stopLiveRefreshLoop();
       this.variants = [];
+      this.mediaRenditions = [];
       this.selectedVariantUrl = "";
       this.activePlaylistText = "";
       this.segments = [];
